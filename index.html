@@ -1,0 +1,496 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>投資デビュー診断</title>
+<style>
+  :root {
+    color-scheme: light;
+    --surface-1: #fcfcfb;
+    --page: #f4f7f6;
+    --card: #ffffff;
+    --text-primary: #0b0b0b;
+    --text-secondary: #52514e;
+    --text-muted: #898781;
+    --grid: #e1e0d9;
+    --border: rgba(11,11,11,0.10);
+
+    --brand-navy: #123a5e;
+    --brand-navy-deep: #0c2a45;
+    --brand-mint: #16a672;
+    --brand-mint-soft: #e4f5ee;
+
+    --series-3: #6da7ec;   /* 3% (sequential, light) */
+    --series-5: #2a78d6;   /* 5% (sequential, mid) */
+    --series-7: #104281;   /* 7% (sequential, dark) */
+    --series-principal: #898781; /* 元本 */
+
+    --alloc-stock: #2a78d6;  /* 株式 (categorical slot1) */
+    --alloc-bond: #1baf7a;   /* 債券 (categorical slot3) */
+
+    --good: #0ca30c;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      color-scheme: dark;
+      --surface-1: #1a1a19;
+      --page: #10130f;
+      --card: #1f231e;
+      --text-primary: #ffffff;
+      --text-secondary: #c3c2b7;
+      --text-muted: #898781;
+      --grid: #2c2c2a;
+      --border: rgba(255,255,255,0.10);
+
+      --brand-navy: #2a6bab;
+      --brand-navy-deep: #1c4e80;
+      --brand-mint: #199e70;
+      --brand-mint-soft: #16281f;
+
+      --series-3: #9ec5f4;
+      --series-5: #5598e7;
+      --series-7: #256abf;
+      --series-principal: #898781;
+
+      --alloc-stock: #3987e5;
+      --alloc-bond: #199e70;
+
+      --good: #0ca30c;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--page);
+    color: var(--text-primary);
+    font-family: system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", "Yu Gothic", Meiryo, "Noto Sans JP", sans-serif;
+    font-feature-settings: 'palt' 1;
+    line-height: 1.6;
+  }
+  .wrap { max-width: 640px; margin: 0 auto; padding: 20px 16px 80px; }
+
+  header.top {
+    text-align: center;
+    padding: 28px 16px 20px;
+  }
+  header.top .logo {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 800;
+    font-size: 15px;
+    color: var(--brand-navy);
+    letter-spacing: .02em;
+  }
+  header.top .logo .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--brand-mint); }
+  header.top h1 {
+    margin: 10px 0 6px;
+    font-size: 26px;
+    font-weight: 800;
+  }
+  header.top p {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 14px;
+  }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 24px;
+    box-shadow: 0 2px 14px rgba(11,11,11,0.05);
+    margin-bottom: 16px;
+  }
+
+  .field { margin-bottom: 18px; }
+  .field:last-child { margin-bottom: 0; }
+  .field label {
+    display: block;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+  }
+  .field .hint {
+    font-size: 12px;
+    color: var(--text-muted);
+    font-weight: 400;
+    margin-left: 4px;
+  }
+  .input-yen {
+    position: relative;
+  }
+  .input-yen input {
+    width: 100%;
+    padding: 12px 14px 12px 32px;
+    border-radius: 12px;
+    border: 1.5px solid var(--grid);
+    background: var(--surface-1);
+    color: var(--text-primary);
+    font-size: 16px;
+    font-variant-numeric: tabular-nums;
+    outline: none;
+    transition: border-color .15s;
+  }
+  .input-yen input:focus { border-color: var(--brand-navy); }
+  .input-yen::before {
+    content: "¥";
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    font-weight: 700;
+    pointer-events: none;
+  }
+
+  button {
+    font-family: inherit;
+    cursor: pointer;
+  }
+  .btn-primary {
+    width: 100%;
+    padding: 14px 20px;
+    border: none;
+    border-radius: 12px;
+    background: var(--brand-navy);
+    color: #fff;
+    font-size: 15px;
+    font-weight: 700;
+    transition: background .15s, transform .05s;
+  }
+  .btn-primary:hover { background: var(--brand-navy-deep); }
+  .btn-primary:active { transform: scale(0.99); }
+
+  .btn-secondary {
+    width: 100%;
+    padding: 13px 20px;
+    border: 1.5px solid var(--brand-navy);
+    border-radius: 12px;
+    background: transparent;
+    color: var(--brand-navy);
+    font-size: 14px;
+    font-weight: 700;
+  }
+
+  .btn-text {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 13px;
+    text-decoration: underline;
+    padding: 6px;
+  }
+
+  [hidden] { display: none !important; }
+
+  /* --- 診断結果 --- */
+  .result-hero {
+    text-align: center;
+    padding: 8px 0 4px;
+  }
+  .result-hero .label {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-secondary);
+  }
+  .result-hero .amount {
+    font-size: 42px;
+    font-weight: 800;
+    color: var(--brand-navy);
+    margin: 6px 0 2px;
+    font-variant-numeric: tabular-nums;
+  }
+  .result-hero .amount small { font-size: 18px; font-weight: 700; }
+  .result-comment {
+    background: var(--brand-mint-soft);
+    border-radius: 12px;
+    padding: 14px 16px;
+    font-size: 14px;
+    color: var(--text-primary);
+    margin-top: 16px;
+  }
+  .breakdown {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    color: var(--text-secondary);
+    border-top: 1px solid var(--grid);
+    margin-top: 18px;
+    padding-top: 14px;
+  }
+  .breakdown div { text-align: center; flex: 1; }
+  .breakdown .v { font-weight: 700; color: var(--text-primary); font-size: 14px; margin-top: 2px; font-variant-numeric: tabular-nums; }
+
+  /* --- CTA / paywall --- */
+  .cta-card {
+    background: linear-gradient(135deg, var(--brand-navy) 0%, var(--brand-navy-deep) 100%);
+    color: #fff;
+    border-radius: 18px;
+    padding: 22px;
+    margin-bottom: 16px;
+  }
+  .cta-card h3 { margin: 0 0 6px; font-size: 17px; }
+  .cta-card p { margin: 0 0 16px; font-size: 13px; opacity: .9; }
+  .cta-card .btn-cta {
+    width: 100%;
+    padding: 13px;
+    border: none;
+    border-radius: 12px;
+    background: var(--brand-mint);
+    color: #fff;
+    font-weight: 700;
+    font-size: 14px;
+  }
+
+  /* --- modal --- */
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.5);
+    display: flex; align-items: flex-end;
+    justify-content: center;
+    z-index: 50;
+  }
+  .modal {
+    background: var(--card);
+    width: 100%; max-width: 640px;
+    border-radius: 20px 20px 0 0;
+    padding: 26px 22px 30px;
+  }
+  .modal h3 { margin: 0 0 4px; font-size: 18px; }
+  .modal .price { font-size: 13px; color: var(--text-muted); margin-bottom: 16px; }
+  .modal ul { margin: 0 0 20px; padding-left: 20px; font-size: 14px; color: var(--text-secondary); }
+  .modal li { margin-bottom: 6px; }
+  .modal .demo-note {
+    font-size: 11px; color: var(--text-muted); text-align: center; margin-top: 10px;
+  }
+
+  /* --- premium --- */
+  .badge-premium {
+    display: inline-block;
+    background: var(--brand-mint);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 999px;
+    margin-bottom: 10px;
+  }
+  .risk-options {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+  }
+  .risk-btn {
+    flex: 1;
+    padding: 12px 6px;
+    border-radius: 12px;
+    border: 1.5px solid var(--grid);
+    background: var(--surface-1);
+    color: var(--text-primary);
+    font-size: 13px;
+    font-weight: 700;
+    text-align: center;
+  }
+  .risk-btn .sub { display: block; font-size: 11px; font-weight: 400; color: var(--text-muted); margin-top: 2px; }
+  .risk-btn.selected {
+    border-color: var(--brand-navy);
+    background: var(--brand-mint-soft);
+    color: var(--brand-navy);
+  }
+
+  .field-inline {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 14px;
+  }
+  .field-inline label { font-size: 13px; font-weight: 700; color: var(--text-secondary); flex-shrink: 0; }
+
+  /* chart legend */
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 16px;
+    justify-content: center;
+    margin-top: 14px;
+    font-size: 12px;
+  }
+  .legend .item { display: flex; align-items: center; gap: 6px; color: var(--text-secondary); }
+  .legend .swatch { width: 14px; height: 3px; border-radius: 2px; }
+  .legend .swatch.dashed { background: repeating-linear-gradient(to right, var(--series-principal) 0 4px, transparent 4px 7px); }
+  .legend .val { font-weight: 700; color: var(--text-primary); font-variant-numeric: tabular-nums; }
+
+  table.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12.5px;
+    margin-top: 14px;
+  }
+  table.data-table th, table.data-table td {
+    padding: 7px 6px;
+    text-align: right;
+    border-bottom: 1px solid var(--grid);
+    font-variant-numeric: tabular-nums;
+  }
+  table.data-table th:first-child, table.data-table td:first-child { text-align: left; color: var(--text-secondary); }
+  table.data-table thead th { color: var(--text-muted); font-weight: 700; font-size: 11px; }
+
+  .alloc-bar {
+    display: flex;
+    height: 28px;
+    border-radius: 8px;
+    overflow: hidden;
+    margin-top: 12px;
+    gap: 2px;
+  }
+  .alloc-bar .seg { display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #fff; }
+  .alloc-legend {
+    display: flex;
+    gap: 18px;
+    margin-top: 10px;
+    font-size: 13px;
+  }
+  .alloc-legend .item { display: flex; align-items: center; gap: 6px; color: var(--text-secondary); }
+  .alloc-legend .swatch { width: 10px; height: 10px; border-radius: 3px; }
+  .alloc-comment {
+    background: var(--surface-1);
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-top: 12px;
+  }
+
+  h2.section-title { font-size: 16px; margin: 0 0 4px; }
+  p.section-sub { font-size: 12.5px; color: var(--text-muted); margin: 0 0 6px; }
+
+  footer.foot {
+    text-align: center;
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 24px;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div class="logo"><span class="dot"></span>投資デビュー診断</div>
+    <h1>毎月いくら投資に回せる?</h1>
+    <p>3つの数字を入れるだけ。30秒で診断します。</p>
+  </header>
+
+  <!-- STEP 1: 入力フォーム -->
+  <div class="card" id="screen-input">
+    <div class="field">
+      <label>月収(バイト代・仕送りなどの合計) <span class="hint">円/月</span></label>
+      <div class="input-yen"><input type="number" inputmode="numeric" id="income" placeholder="例: 100000" min="0"></div>
+    </div>
+    <div class="field">
+      <label>主な固定費(家賃・通信費など) <span class="hint">円/月</span></label>
+      <div class="input-yen"><input type="number" inputmode="numeric" id="fixed" placeholder="例: 40000" min="0"></div>
+    </div>
+    <div class="field">
+      <label>その他の月間支出(食費・交遊費など) <span class="hint">円/月</span></label>
+      <div class="input-yen"><input type="number" inputmode="numeric" id="other" placeholder="例: 35000" min="0"></div>
+    </div>
+    <div class="field">
+      <button class="btn-primary" id="btn-diagnose">診断する</button>
+    </div>
+  </div>
+
+  <!-- STEP 2: 診断結果(無料) -->
+  <div id="screen-result" hidden>
+    <div class="card">
+      <div class="result-hero">
+        <div class="label">毎月、投資に回せる目安額</div>
+        <div class="amount"><span id="result-amount">0</span><small>円</small></div>
+      </div>
+      <div class="result-comment" id="result-comment"></div>
+      <div class="breakdown">
+        <div>月収<div class="v" id="bd-income">-</div></div>
+        <div>固定費<div class="v" id="bd-fixed">-</div></div>
+        <div>その他支出<div class="v" id="bd-other">-</div></div>
+      </div>
+    </div>
+
+    <div class="cta-card">
+      <h3>この余裕額、実際に運用したらどうなる?</h3>
+      <p>NISAで積立てた場合の10年後・20年後の資産推移をシミュレーションできます。</p>
+      <button class="btn-cta" id="btn-open-paywall">もっと詳しく見る →</button>
+    </div>
+
+    <button class="btn-text" id="btn-back-input">← もう一度入力する</button>
+  </div>
+
+  <!-- STEP 3: 有料シミュレーション -->
+  <div id="screen-premium" hidden>
+    <div class="card">
+      <span class="badge-premium">詳細シミュレーション</span>
+      <h2 class="section-title">あなたのリスク許容度は?</h2>
+      <p class="section-sub">3つのうち近いものを選んでください</p>
+      <div class="risk-options">
+        <button class="risk-btn" data-risk="stable">安定重視<span class="sub">値動きは小さく</span></button>
+        <button class="risk-btn" data-risk="balance">バランス<span class="sub">標準的な配分</span></button>
+        <button class="risk-btn" data-risk="active">積極的<span class="sub">大きく増やしたい</span></button>
+      </div>
+
+      <div class="alloc-bar" id="alloc-bar" hidden></div>
+      <div class="alloc-legend" id="alloc-legend" hidden></div>
+      <div class="alloc-comment" id="alloc-comment" hidden></div>
+    </div>
+
+    <div class="card">
+      <h2 class="section-title">NISA積立シミュレーション</h2>
+      <p class="section-sub">利回り3パターンでの資産推移</p>
+      <div class="field-inline">
+        <label>毎月の積立額</label>
+        <div class="input-yen" style="flex:1"><input type="number" inputmode="numeric" id="sim-monthly" min="0"></div>
+      </div>
+      <canvas id="sim-chart" height="220" style="margin-top:14px;"></canvas>
+      <div class="legend" id="chart-legend"></div>
+
+      <div class="breakdown" style="margin-top:20px;">
+        <div>10年後(年5%)<div class="v" id="fv-10">-</div></div>
+        <div>20年後(年5%)<div class="v" id="fv-20">-</div></div>
+        <div>累計投資額(20年)<div class="v" id="fv-principal">-</div></div>
+      </div>
+
+      <button class="btn-text" id="btn-toggle-table" style="display:block; margin: 12px auto 0;">表で見る ▾</button>
+      <div id="table-wrap" hidden></div>
+    </div>
+
+    <button class="btn-text" id="btn-back-result">← 診断結果に戻る</button>
+  </div>
+
+  <footer class="foot">
+    ※本アプリの試算は簡易的なものであり、将来の運用成果を保証するものではありません。<br>
+    投資は自己判断・自己責任で行ってください。
+  </footer>
+</div>
+
+<!-- 課金導線モーダル(ダミー) -->
+<div class="modal-overlay" id="paywall-modal" hidden>
+  <div class="modal">
+    <h3>NISA積立シミュレーション</h3>
+    <div class="price">¥480 (買い切り) ※このアプリではまだ実際の決済は行われません</div>
+    <ul>
+      <li>利回り3%/5%/7%での10年後・20年後の資産推移グラフ</li>
+      <li>リスク許容度に応じたおすすめの資産配分</li>
+      <li>積立額を自由に変えて何度でも試算可能</li>
+    </ul>
+    <button class="btn-cta" id="btn-fake-pay" style="width:100%; margin-bottom:10px;">購入する(仮) →</button>
+    <button class="btn-text" id="btn-close-modal" style="display:block; margin:0 auto;">閉じる</button>
+    <div class="demo-note">ここに将来 Stripe 等の決済ボタンが入ります</div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
