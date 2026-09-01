@@ -187,6 +187,8 @@ function diagnose() {
   renderLeakInsight(d);
   renderTopOverInsight(d);
   renderComparison(d);
+  linkifyTerms($('result-comment'));
+  linkifyTerms($('insight-leak'));
 
   // 有料シミュレーションの初期値に反映
   setMonthly(Math.max(1000, Math.round(d.surplus / 1000) * 1000));
@@ -387,6 +389,8 @@ function refreshSim() {
   $('lab-fv').textContent = years + '年後';
   buildChart();
   renderBoost();
+  renderTodo();   // 「毎月◯円の自動積立を設定する」の金額を追従させる
+  renderGoal();   // 目標とのギャップも積立額に連動する
 }
 
 const monthlyRange = $('sim-monthly-range');
@@ -604,6 +608,11 @@ function renderPortfolio(key) {
   $('port-bar').hidden = false;
   $('port-list').hidden = false;
   $('port-comment').hidden = false;
+
+  linkifyTerms($('port-list'));
+  linkifyTerms($('port-comment'));
+
+  renderTodo();   // 行動ガイドの中身もタイプに合わせて作り直す
 }
 
 document.querySelectorAll('.risk-btn').forEach((btn) => {
@@ -615,9 +624,333 @@ document.querySelectorAll('.risk-btn').forEach((btn) => {
   });
 });
 document.querySelector('.risk-btn[data-risk="balance"]').classList.add('selected');
-renderPortfolio('balance');
 
-// ============ STEP 3-4: 結果カードの画像保存 ============
+// ============ 用語ツールチップ ============
+const GLOSSARY = {
+  nisa: ['NISA(ニーサ)',
+    '投資で出た利益に税金がかからなくなる国の制度。ふつうは利益の約20%が税金で引かれるが、NISA口座の中で買えばそれが0円になる。18歳以上なら誰でも1人1口座作れる。'],
+  tsumitate: ['つみたて投資枠',
+    'NISAの中の枠のひとつで、年間120万円まで積み立てられる。長期の積立に向くと国が認めた投資信託しか買えない仕組みなので、初心者ほど選びやすい。'],
+  toushin: ['投資信託(ファンド)',
+    'たくさんの人からお金を集めて、まとめて何百〜何千社の株に投資してくれる商品。1本買うだけで自動的に分散投資になるので、個別の会社を選ぶ必要がない。'],
+  index: ['インデックスファンド',
+    '「日経平均」「S&P500」のような指数と同じ値動きを目指す投資信託。運用にかかる手数料(信託報酬)が非常に安いのが特徴で、長期の積立ではここが効いてくる。'],
+  zensekai: ['全世界株式インデックス',
+    '世界中の約3,000社の株にまとめて投資するインデックスファンド。1本で日本・米国・欧州・新興国すべてに分散できるため、最初の1本として定番。'],
+  bunsan: ['分散投資',
+    '1社や1つの国に集中せず、いろいろな対象に分けて投資すること。どれかが下がっても他が支えるので、資産全体の値動きがおだやかになる。'],
+  fukuri: ['複利',
+    '増えた利益がさらに次の利益を生むこと。元本100万円が5%増えて105万円になると、翌年は105万円に対して5%がつく。期間が長いほど雪だるま式に効いてくる。'],
+  rimawari: ['利回り',
+    'investした資金が1年でどれくらい増えるかの割合。このアプリの3%/5%/7%は「将来こうなると仮定した数字」であって、保証された数字ではない。'],
+  kureka: ['クレカ積立',
+    'クレジットカードで毎月の積立を自動決済する設定。カードのポイントが貯まるうえ、口座残高を気にせず自動で買い付けられるので「続ける」のが一番ラク。'],
+  drip: ['ドルコスト平均法',
+    '毎月同じ金額を買い続ける方法。価格が高いときは少なく、安いときは多く買うことになるので、買うタイミングで悩まなくて済む。'],
+  ganpon: ['元本',
+    '自分が積み立てたお金そのものの合計。グラフの点線が元本で、そこから上に離れた分が運用で増えた利益にあたる。'],
+};
+
+// 用語をツールチップ付きのボタンとして埋め込む
+const term = (key, text) => `<button class="term" data-term="${key}">${text || GLOSSARY[key][0].replace(/\(.+\)/, '')}</button>`;
+
+const tip = document.createElement('div');
+tip.id = 'tip';
+tip.hidden = true;
+document.body.appendChild(tip);
+
+function showTip(btn) {
+  const [title, body] = GLOSSARY[btn.dataset.term];
+  tip.innerHTML = `<span class="tip-t">${title}</span>${body}<button class="tip-close">閉じる</button>`;
+  tip.hidden = false;
+
+  // いったん表示してから、はみ出さない位置に置き直す
+  const r = btn.getBoundingClientRect();
+  const w = tip.offsetWidth;
+  let left = r.left + window.scrollX + r.width / 2 - w / 2;
+  left = Math.max(12, Math.min(left, document.documentElement.clientWidth - w - 12));
+  tip.style.left = left + 'px';
+  tip.style.top = (r.bottom + window.scrollY + 8) + 'px';
+}
+
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('.term');
+  if (btn) { showTip(btn); return; }
+  if (!e.target.closest('#tip') || e.target.closest('.tip-close')) tip.hidden = true;
+});
+window.addEventListener('scroll', () => { tip.hidden = true; }, { passive: true });
+
+// すでに書かれている文章の中の専門用語にも、あとからツールチップを付ける
+// (長い語を先に並べる。「全世界株式インデックス」が「インデックス〜」に食われないように)
+const AUTO_TERMS = [
+  ['全世界株式インデックス', 'zensekai'],
+  ['インデックスファンド', 'index'],
+  ['ドルコスト平均法', 'drip'],
+  ['つみたて投資枠', 'tsumitate'],
+  ['投資信託', 'toushin'],
+  ['分散投資', 'bunsan'],
+  ['NISA', 'nisa'],
+  ['複利', 'fukuri'],
+  ['利回り', 'rimawari'],
+  ['元本', 'ganpon'],
+];
+const AUTO_RE = new RegExp(AUTO_TERMS.map(([w]) => w).join('|'), 'g');
+const escapeHtml = (s) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+function linkifyTerms(root) {
+  if (!root) return;
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
+  const nodes = [];
+  while (walker.nextNode()) {
+    const n = walker.currentNode;
+    // ボタンの中(=すでに用語ボタン等)には入れ子にしない
+    if (n.nodeValue.trim() && !n.parentElement.closest('button')) nodes.push(n);
+  }
+  nodes.forEach((n) => {
+    AUTO_RE.lastIndex = 0;
+    if (!AUTO_RE.test(n.nodeValue)) return;
+    AUTO_RE.lastIndex = 0;
+    const html = escapeHtml(n.nodeValue).replace(AUTO_RE, (m) => {
+      const hit = AUTO_TERMS.find(([w]) => w === m);
+      return `<button class="term" data-term="${hit[1]}">${m}</button>`;
+    });
+    const span = document.createElement('span');
+    span.innerHTML = html;
+    n.replaceWith(span);
+  });
+}
+
+// ============ STEP 3-4: 行動ガイド(チェックリスト) ============
+const TODO_KEY = 'toshi-debut-todo';
+
+function loadTodo() {
+  try { return JSON.parse(localStorage.getItem(TODO_KEY)) || {}; } catch (e) { return {}; }
+}
+function saveTodo(done) {
+  try { localStorage.setItem(TODO_KEY, JSON.stringify(done)); } catch (e) { /* 保存できなくても動作は続ける */ }
+}
+let todoDone = loadTodo();
+
+function todoSteps() {
+  const p = PORTFOLIOS[selectedRisk];
+  const first = p.items[0];
+  return [
+    { id: 'account', title: `証券口座と${term('nisa', 'NISA')}口座を同時に申し込む`,
+      body: `SBI証券・楽天証券・マネックス証券などから1社選ぶ。スマホとマイナンバーカードがあれば申込は15〜20分、開設まで最短で翌営業日。口座の開設・維持はすべて無料。` },
+    { id: 'fund', title: `1本目に「${first.name}」を候補にする`,
+      body: `${first.ex}。${term('index', 'インデックスファンド')}なので、これ1本でも自動的に${term('bunsan', '分散投資')}になる。最初から${p.items.length}本そろえる必要はなく、まず1本で始めてOK。` },
+    { id: 'auto', title: `毎月 ${num(monthly)}円 の自動積立を設定する`,
+      body: `${term('tsumitate', 'つみたて投資枠')}を選び、毎月同じ日に自動で買う設定にする(${term('kureka', 'クレカ積立')}にするとポイントも貯まる)。金額はあとから何度でも変えられるので、迷ったら少なめから。` },
+    { id: 'nowatch', title: '設定したら、アプリを閉じて放置する',
+      body: `毎日値動きを見ると、下がったときに売りたくなる。${term('drip', 'ドルコスト平均法')}は「見ないで続ける」ほど効く。確認は月1回で十分。` },
+    { id: 'review', title: '半年後に、金額を見直す',
+      body: `半年続けて家計が苦しくなければ月+1,000〜3,000円だけ増やす。${term('fukuri', '複利')}は期間が命なので、早く始めて長く続けるほど結果が変わる。` },
+  ];
+}
+
+function renderTodo() {
+  const steps = todoSteps();
+  const p = PORTFOLIOS[selectedRisk];
+  $('todo-sub').innerHTML = `<strong>${p.label}タイプ</strong>のあなた向けの手順です。終わったらチェックを付けてください`;
+
+  $('todo-list').innerHTML = steps.map((s, i) => `
+    <div class="todo-item${todoDone[s.id] ? ' done' : ''}" data-todo="${s.id}" role="checkbox"
+         tabindex="0" aria-checked="${todoDone[s.id] ? 'true' : 'false'}">
+      <span class="todo-check">✓</span>
+      <div>
+        <div class="todo-no">STEP ${i + 1}</div>
+        <div class="todo-title">${s.title}</div>
+        <div class="todo-body">${s.body}</div>
+      </div>
+    </div>`).join('');
+
+  linkifyTerms($('todo-list'));
+
+  const n = steps.filter((s) => todoDone[s.id]).length;
+  $('todo-fill').style.width = (n / steps.length) * 100 + '%';
+  $('todo-label').textContent = `${n} / ${steps.length}`;
+  $('todo-done').hidden = n < steps.length;
+}
+
+function toggleTodo(el) {
+  const id = el.dataset.todo;
+  todoDone[id] = !todoDone[id];
+  saveTodo(todoDone);
+  renderTodo();
+}
+
+$('todo-list').addEventListener('click', (e) => {
+  if (e.target.closest('.term')) return;   // 用語の説明を開くときはチェックしない
+  const item = e.target.closest('.todo-item');
+  if (item) toggleTodo(item);
+});
+$('todo-list').addEventListener('keydown', (e) => {
+  if (e.key !== ' ' && e.key !== 'Enter') return;
+  const item = e.target.closest('.todo-item');
+  if (item) { e.preventDefault(); toggleTodo(item); }
+});
+
+// ============ STEP 3-5: 「なりたい将来」から逆算 ============
+const GOALS = [
+  { id: 'study',  label: '留学したい',           amount: 1500000,  years: 3 },
+  { id: 'car',    label: '車を買いたい',         amount: 2500000,  years: 8 },
+  { id: 'travel', label: '世界一周したい',       amount: 3000000,  years: 6 },
+  { id: 'wed',    label: '結婚資金を用意したい', amount: 4000000,  years: 10 },
+  { id: 'house',  label: 'タワマンの頭金',       amount: 15000000, years: 15 },
+  { id: 'fire',   label: '早期リタイア資金',     amount: 30000000, years: 25 },
+  { id: 'free',   label: '自分で決める',         amount: null,     years: null },
+];
+
+let goalId = 'car';
+let goalAmount = 2500000;
+let goalYears = 8;
+
+// 目標額に届くのに必要な毎月の積立額
+function requiredMonthly(target, annualRate, yrs) {
+  const i = annualRate / 12;
+  const n = yrs * 12;
+  if (n <= 0) return target;
+  return i === 0 ? target / n : target / (((1 + i) ** n - 1) / i);
+}
+
+// 今の積立額のままだと何ヶ月かかるか(届かないなら null)
+function monthsToReach(target, annualRate, perMonth) {
+  if (perMonth <= 0) return null;
+  const i = annualRate / 12;
+  if (i === 0) return target / perMonth;
+  const inner = 1 + (target * i) / perMonth;
+  if (inner <= 1) return null;
+  const m = Math.log(inner) / Math.log(1 + i);
+  return m > 1200 ? null : m;   // 100年を超えるなら「届かない」扱い
+}
+
+const yearsMonths = (m) => {
+  const t = Math.ceil(m);
+  const y = Math.floor(t / 12), mo = t % 12;
+  return mo === 0 ? `${y}年` : `${y}年${mo}ヶ月`;
+};
+
+$('goal-chips').innerHTML = GOALS.map((g) =>
+  `<button class="chip${g.id === goalId ? ' selected' : ''}" data-goal="${g.id}">${g.label}</button>`).join('');
+
+$('goal-chips').addEventListener('click', (e) => {
+  const chip = e.target.closest('.chip');
+  if (!chip) return;
+  goalId = chip.dataset.goal;
+  document.querySelectorAll('.chip').forEach((c) => c.classList.toggle('selected', c.dataset.goal === goalId));
+  const g = GOALS.find((x) => x.id === goalId);
+  if (g.amount != null) {
+    goalAmount = g.amount;
+    goalYears = g.years;
+    $('goal-amount').value = commas(goalAmount);
+    $('goal-years').value = goalYears;
+  }
+  renderGoal();
+});
+
+bindMoney($('goal-amount'), (n) => { goalAmount = n; markCustomGoal(); renderGoal(); });
+$('goal-years').addEventListener('input', () => {
+  goalYears = Number($('goal-years').value);
+  markCustomGoal();
+  renderGoal();
+});
+
+// プリセットの数字から離れたら「自分で決める」に切り替える
+function markCustomGoal() {
+  const g = GOALS.find((x) => x.id === goalId);
+  if (!g || g.amount == null) return;
+  if (g.amount !== goalAmount || g.years !== goalYears) {
+    goalId = 'free';
+    document.querySelectorAll('.chip').forEach((c) => c.classList.toggle('selected', c.dataset.goal === 'free'));
+  }
+}
+
+function renderGoal() {
+  $('goal-amount-label').textContent = '¥' + num(goalAmount);
+  $('goal-years-label').textContent = goalYears + '年後';
+
+  // 必要額は切り上げる(切り捨てると、その額を積み立てても目標にわずかに届かない)
+  const need = Math.ceil(requiredMonthly(goalAmount, baseRate, goalYears));
+  const savedOnly = Math.ceil(goalAmount / (goalYears * 12));   // 投資せず貯金だけの場合
+  const ratePct = Math.round(baseRate * 100);
+
+  const head = `
+    <div class="goal-need">
+      <div class="lb">${goalYears}年後に ${manEn(goalAmount)} を用意するには</div>
+      <div class="amt">毎月 ${num(need)}<small>円</small></div>
+      <div class="sb">年${ratePct}%で運用できた場合 / 貯金だけなら毎月 ${num(savedOnly)}円 必要</div>
+    </div>`;
+
+  // 現在の積立設定との差
+  const diff = need - monthly;
+  const reach = monthsToReach(goalAmount, baseRate, monthly);
+  let gap;
+
+  if (monthly <= 0) {
+    gap = `
+      <div class="gap-box short">
+        <div class="gh">まだ積立額が0円です</div>
+        <div class="gb">上のシミュレーションで毎月の積立額を設定すると、目標との差が出ます。</div>
+      </div>`;
+  } else if (diff <= 0) {
+    const early = reach == null ? null : goalYears * 12 - reach;
+    gap = `
+      <div class="gap-box ok">
+        <div class="gh">今のペースで達成できます</div>
+        <span class="gbig">${reach == null ? '' : yearsMonths(reach)}で到達</span>
+        <div class="gb">
+          現在の積立額 ${num(monthly)}円は、必要額 ${num(need)}円を ${num(-diff)}円 上回っています。
+          ${early != null && early > 0 ? `目標より <strong>${yearsMonths(early)}早く</strong>届く計算です。` : ''}
+        </div>
+      </div>`;
+  } else {
+    const delay = reach == null ? null : reach - goalYears * 12;
+    gap = `
+      <div class="gap-box short">
+        <div class="gh">今のペースだと足りません</div>
+        <span class="gbig">あと 毎月 ${num(diff)}円</span>
+        <div class="gb">
+          現在の積立額 ${num(monthly)}円のままだと、
+          ${reach == null
+            ? '現実的な期間では目標に届きません。目標額を下げるか、期間を延ばしてみてください。'
+            : `到達は <strong>${yearsMonths(reach)}後</strong>。目標より <strong>${yearsMonths(delay)}遅れる</strong>計算です。`}
+        </div>
+        <button class="btn-apply" id="btn-apply-goal">毎月 ${num(need)}円 で試算してみる</button>
+      </div>`;
+  }
+
+  // 必要額と現在額をバーで見比べる
+  const scale = Math.max(need, monthly) * 1.1 || 1;
+  const bars = `
+    <div class="goal-bars">
+      <div class="goal-bar-row">
+        <div class="gl">目標に必要な積立額<span class="gv">${num(need)}円/月</span></div>
+        <div class="gt"><div class="gf" style="width:${(need / scale) * 100}%; background:var(--brand-navy)"></div></div>
+      </div>
+      <div class="goal-bar-row">
+        <div class="gl">いまの積立設定<span class="gv">${num(monthly)}円/月</span></div>
+        <div class="gt"><div class="gf" style="width:${(monthly / scale) * 100}%; background:var(--brand-mint)"></div></div>
+      </div>
+      ${state ? `
+      <div class="goal-bar-row">
+        <div class="gl">無料診断で出た余力<span class="gv">${num(state.surplus)}円/月</span></div>
+        <div class="gt"><div class="gf" style="width:${(Math.min(state.surplus, scale) / scale) * 100}%; background:var(--series-3)"></div></div>
+      </div>` : ''}
+    </div>`;
+
+  $('goal-result').innerHTML = head + gap + bars;
+
+  const apply = $('btn-apply-goal');
+  if (apply) {
+    apply.addEventListener('click', () => {
+      setMonthly(need);
+      refreshSim();
+      $('sim-monthly').scrollIntoView?.({ behavior: 'smooth', block: 'center' });
+    });
+  }
+}
+
+// ============ STEP 3-6: 結果カードの画像保存 ============
 const FONT = '"Yu Gothic", "Hiragino Sans", Meiryo, system-ui, sans-serif';
 
 function roundRect(ctx, x, y, w, h, r) {
@@ -797,5 +1130,7 @@ $('btn-download-card').addEventListener('click', () => {
   }, 'image/png');
 });
 
-// 初期表示
+// ============ 初期表示 ============
 setMonthly(10000);
+renderPortfolio('balance');   // 中で renderTodo() も呼ばれる
+renderGoal();
