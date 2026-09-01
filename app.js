@@ -386,6 +386,11 @@ function diagnose() {
 
   setMonthly(Math.max(1000, Math.round(d.surplus / 1000) * 1000));
 
+  // 積立額が決まってから、早く始めることの効果を出す
+  renderEarly();
+  renderDelay();
+  renderInflation();
+
   // すでに5問答え終わっている状態で金額を直した場合、
   // 余裕額が変わればタイプも変わりうるので判定し直す
   if (selectedRisk && quizAnswers.every((a) => a !== null)) {
@@ -447,6 +452,141 @@ function commentFor(d) {
   if (x < 30000) return `${num(x)}円はしっかり投資に回せる余裕額です。全額を投資に回さず、一部は突発的な出費用に現金で残しておくと安心です。`;
   return `${num(x)}円はかなり余裕があります。NISAのつみたて投資枠を十分に活かせる水準です。`;
 }
+
+// ============================================================
+// 早く始めることの効果(無料)
+//
+// 煽らず、「同じ条件で年数だけ変えるとこうなる」という事実だけを見せる。
+// 金額はユーザー自身の余裕額(monthly)を使う。
+// ============================================================
+const EARLY = {
+  young: 22,        // 大学を出てすぐ
+  older: 32,        // その10年後
+  until: 65,        // 定年をイメージした年齢
+  rate: 0.05,       // 年5%(想定)
+  inflation: 0.02,  // 年2%(物価上昇の想定)
+  sample: 1000000,  // インフレの説明に使う金額
+};
+
+// 積立額は診断で出した余裕額。0円のときでも話が成立するよう最低1,000円で見せる
+const planMonthly = () => Math.max(1000, monthly);
+
+// ① 10年早く始めると、65歳時点でどれだけ違うか
+function renderEarly() {
+  const m = planMonthly();
+  const yA = EARLY.until - EARLY.young;      // 43年
+  const yB = EARLY.until - EARLY.older;      // 33年
+  const fvA = futureValue(m, EARLY.rate, yA);
+  const fvB = futureValue(m, EARLY.rate, yB);
+  const ratio = (fvA / fvB).toFixed(1);
+  const extraPrincipal = m * 12 * (yA - yB);
+  const ratePct = Math.round(EARLY.rate * 100);
+
+  $('early-card').innerHTML = `
+    <h2 class="section-title"><span class="ic">🕰️</span>早く始めるほど有利、を数字で</h2>
+    <p class="section-sub">毎月 ${num(m)}円 を年${ratePct}%で積み立て、${EARLY.until}歳まで続けた場合の比較です</p>
+    <div class="age-rows">
+      <div class="age-row">
+        <div class="ah">
+          <span class="who">${EARLY.young}歳から始める</span><span class="yrs">${yA}年間</span>
+          <span class="av">${manEn(fvA)}</span>
+        </div>
+        <div class="atrack"><div class="afill" style="width:100%"></div></div>
+      </div>
+      <div class="age-row later">
+        <div class="ah">
+          <span class="who">${EARLY.older}歳から始める</span><span class="yrs">${yB}年間</span>
+          <span class="av">${manEn(fvB)}</span>
+        </div>
+        <div class="atrack"><div class="afill" style="width:${(fvB / fvA) * 100}%"></div></div>
+      </div>
+    </div>
+    <div class="fact-note">
+      <span class="big">10年早く始めるだけで ${ratio}倍</span>
+      追加で積み立てた元本は ${manEn(extraPrincipal)} ですが、${EARLY.until}歳時点の差は
+      <strong>${manEn(fvA - fvB)}</strong> になります。
+      増えた分のほとんどは、お金が働いていた時間の長さによるものです。
+      毎月の金額を増やすより、始める時期を早めるほうが効く場面があります。
+    </div>`;
+  linkifyTerms($('early-card'));
+}
+
+// ② 1年先延ばしにすると、将来いくら差がつくか
+function renderDelay() {
+  const m = planMonthly();
+  const ratePct = Math.round(EARLY.rate * 100);
+  const marks = [10, 20];
+  const rows = marks.map((y) => {
+    const now = futureValue(m, EARLY.rate, y);
+    const late = futureValue(m, EARLY.rate, y - 1);
+    return `
+      <tr>
+        <td>${y}年後</td>
+        <td class="now">${manEn(now)}</td>
+        <td class="later">${manEn(late)}</td>
+        <td class="gap">−${manEn(now - late)}</td>
+      </tr>`;
+  }).join('');
+  const diff20 = futureValue(m, EARLY.rate, 20) - futureValue(m, EARLY.rate, 19);
+
+  $('delay-card').innerHTML = `
+    <h2 class="section-title"><span class="ic">⏳</span>1年先延ばしにすると</h2>
+    <p class="section-sub">毎月 ${num(m)}円・年${ratePct}%で積み立てた場合。同じ時点で比べています</p>
+    <table class="delay-table">
+      <thead>
+        <tr><th>経過</th><th>今から始める</th><th>1年後から始める</th><th>差</th></tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <div class="fact-note">
+      <span class="big">1年待つと、20年後に ${manEn(diff20)} の差</span>
+      1年ぶんの積立(${manEn(m * 12)})を見送っただけですが、
+      そのお金が20年ではなく19年しか働けないぶん、差はこれだけ広がります。
+      逆に言えば、<strong>金額が小さくても今月から始めることに意味があります</strong>。
+    </div>
+    <button class="btn-unlock-mini" data-open-paywall style="margin-top:16px;">
+      金額・期間・利回りを変えて試算する →
+    </button>
+    <p style="font-size:11px; color:var(--ink-3); text-align:center; margin:8px 0 0;">
+      自由に動かせるシミュレーションは有料(¥300)です
+    </p>`;
+  linkifyTerms($('delay-card'));
+}
+
+// ③ 貯金だけの場合の話(インフレ)。断定せず、判断材料として出す
+function renderInflation() {
+  const p = EARLY.sample;
+  const r = EARLY.inflation;
+  const v10 = p / (1 + r) ** 10;
+  const v20 = p / (1 + r) ** 20;
+  const pct = Math.round(r * 100);
+
+  $('inflation-card').innerHTML = `
+    <h2 class="section-title"><span class="ic">🧊</span>貯金だけにしておくと</h2>
+    <p class="section-sub">投資をすすめるためではなく、判断の材料として知っておきたい話です</p>
+    <div class="infl-steps">
+      <div class="infl-step a"><div class="k">いま</div><div class="v">${manEn(p)}</div></div>
+      <span class="infl-arrow">→</span>
+      <div class="infl-step b"><div class="k">10年後の価値</div><div class="v">約${manEn(v10)}</div></div>
+      <span class="infl-arrow">→</span>
+      <div class="infl-step c"><div class="k">20年後の価値</div><div class="v">約${manEn(v20)}</div></div>
+    </div>
+    <div class="fact-note calm">
+      物価が毎年${pct}%ずつ上がると、${manEn(p)}という金額そのものは減らなくても、
+      それで買えるものは10年で <strong>約${manEn(v10)}分</strong> まで減ります。
+      これがインフレで、日本銀行が目標として掲げているのも年${pct}%の物価上昇です。<br><br>
+      ただしこれは「だから投資すべき」という話ではありません。
+      投資には元本割れの可能性があり、貯金には<strong>額面が絶対に減らないという確実さ</strong>があります。
+      どちらにもそれぞれのリスクがあることを知ったうえで、自分で決めるのがいちばん大事です。
+    </div>`;
+  linkifyTerms($('inflation-card'));
+}
+
+// 「試算する」ボタンから課金モーダルを開く
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-open-paywall]');
+  if (btn) openModal(modal, 'btn-fake-pay');
+});
 
 function renderLeakInsight(d) {
   const leak = LEAK_IDS.reduce((s, id) => s + d.spend[id], 0);
@@ -718,6 +858,7 @@ function renderTypeCard(key, score, opts) {
   linkifyTerms($('type-card-wrap'));
 
   renderAnswers();
+  renderTypeAvg();              // 無料の締め: 同じタイプの人との比較
   renderSocial();               // タイプが決まってからでないと文面が作れない
   $('lock-type').textContent = per.name;
   renderPeek(p);
@@ -912,6 +1053,7 @@ $('btn-quiz-retry').addEventListener('click', () => {
   $('type-card-wrap').innerHTML = '';
   $('answers-wrap').innerHTML = '';
   $('social-card').hidden = true;
+  $('typeavg-card').hidden = true;
   $('social-note-free').hidden = true;
   $('social-note-paid').hidden = true;
   $('faq-card').hidden = true;
@@ -1014,6 +1156,95 @@ function renderFaq() {
     </details>`).join('');
   linkifyTerms($('faq-list'));
   $('faq-card').hidden = false;
+}
+
+// ============================================================
+// 同じタイプの人の平均データ(無料の締め・有料への導線)
+//
+// 数値はすべてダミー。実データが取れたらここを差し替える。
+// avg   : 平均して月いくら投資に回しているか
+// mix   : 内訳(有料で見せる)
+// plan  : このタイプがよく選ぶ投資プラン(有料で見せる)
+// years : 続けている平均期間(有料で見せる)
+// ============================================================
+const TYPE_STATS = {
+  'stable-low':   { avg: 3200,  mix: '積立 70% / 現金 30%', plan: '全世界株式インデックス1本', years: '1年2ヶ月' },
+  'stable-mid':   { avg: 9800,  mix: '積立 75% / 現金 25%', plan: '全世界株式＋高配当株',       years: '1年8ヶ月' },
+  'stable-high':  { avg: 24500, mix: '積立 70% / 現金 30%', plan: '全世界株式＋生活必需品',     years: '2年1ヶ月' },
+  'balance-low':  { avg: 3800,  mix: '積立 80% / 現金 20%', plan: '全世界株式インデックス1本', years: '1年0ヶ月' },
+  'balance-mid':  { avg: 11500, mix: '積立 80% / 現金 20%', plan: '全世界株式＋S&P500',        years: '1年7ヶ月' },
+  'balance-high': { avg: 28000, mix: '積立 78% / 現金 22%', plan: '全世界株式＋S&P500＋新興国', years: '2年4ヶ月' },
+  'active-low':   { avg: 4500,  mix: '積立 85% / 現金 15%', plan: 'S&P500インデックス1本',     years: '0年11ヶ月' },
+  'active-mid':   { avg: 13200, mix: '積立 85% / 現金 15%', plan: 'S&P500＋米国ハイテク',       years: '1年5ヶ月' },
+  'active-high':  { avg: 32000, mix: '積立 88% / 現金 12%', plan: 'S&P500＋米国ハイテク＋新興国', years: '2年0ヶ月' },
+};
+
+function renderTypeAvg() {
+  const per = PERSONAS[selectedPersona];
+  const st = TYPE_STATS[selectedPersona];
+  if (!per || !st) { $('typeavg-card').hidden = true; return; }
+
+  const mine = state ? state.surplus : 0;
+  const diff = mine - st.avg;
+  const near = Math.abs(diff) < 1000;      // 1,000円以内は「ほぼ同じ」とみなす
+
+  let cls, icon, comment;
+  if (near) {
+    cls = 'same'; icon = '⚖️';
+    comment = `あなたは同じタイプの平均と<strong>ほぼ同じ</strong>です。周りと同じペースで始められる位置にいます。`;
+  } else if (diff > 0) {
+    cls = 'over'; icon = '📈';
+    comment = `あなたは平均より <strong>月${num(diff)}円 多い</strong>です。` +
+      `そのぶん早く増やせる位置にいますが、金額を上げるより<strong>続けること</strong>のほうが結果に効きます。`;
+  } else {
+    cls = 'under'; icon = '🌱';
+    comment = `あなたは平均より <strong>月${num(-diff)}円 少ない</strong>です。` +
+      `ただし平均に合わせる必要はありません。無理な金額にすると途中でやめることになり、そのほうが損になります。`;
+  }
+
+  $('typeavg-card').innerHTML = `
+    <h2 class="section-title"><span class="ic">📊</span>同じタイプの人は、どうしている?</h2>
+    <p class="section-sub">あなたと同じ<strong>${per.name}</strong>の人のデータです</p>
+    <div class="ta-hero">
+      <div class="ta-box you">
+        <div class="k">あなたが回せる額</div>
+        <div class="v">${num(mine)}<small>円</small></div>
+      </div>
+      <span class="ta-vs">VS</span>
+      <div class="ta-box avg">
+        <div class="k">同じタイプの平均</div>
+        <div class="v">${num(st.avg)}<small>円</small></div>
+      </div>
+    </div>
+    <div class="ta-comment ${cls}"><span>${icon}</span><span>${comment}</span></div>
+
+    <div class="locked mini">
+      <div class="locked-peek" aria-hidden="true">
+        <div class="peek-title">${per.name}の平均的な内訳</div>
+        <div class="peek-line"><span class="lb">投資と現金の比率</span><span class="vl">${st.mix}</span></div>
+        <div class="peek-line"><span class="lb">よく選ばれている投資プラン</span><span class="vl">${st.plan}</span></div>
+        <div class="peek-line"><span class="lb">続けている平均期間</span><span class="vl">${st.years}</span></div>
+        <div class="peek-chart" style="margin-top:14px;">
+          <i style="height:38%"></i><i style="height:52%"></i><i style="height:61%"></i>
+          <i style="height:74%"></i><i style="height:88%"></i><i style="height:100%"></i>
+        </div>
+      </div>
+      <div class="locked-overlay">
+        <div class="lockic">🔒</div>
+        <h3>もっと詳しい内訳を見る</h3>
+        <div class="sub">同じ<strong>${per.name}</strong>の人が実際にどう投資しているか</div>
+        <ul class="unlock-list">
+          <li>投資に回している金額の内訳(積立と現金の比率)</li>
+          <li>このタイプがよく選んでいる投資プランと商品名</li>
+          <li>あなたの金額に合わせた積立シミュレーション</li>
+        </ul>
+        <button class="btn-unlock-mini" data-open-paywall>¥300で全部見る →</button>
+      </div>
+    </div>
+    <p style="font-size:11px; color:var(--ink-3); margin:12px 0 0;">
+      ※平均値はサンプル用の参考値です。実際の利用者データではありません。
+    </p>`;
+  $('typeavg-card').hidden = false;
 }
 
 // ============================================================

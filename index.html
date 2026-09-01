@@ -551,6 +551,115 @@ p.section-sub { font-size: 12.5px; color: var(--ink-3); margin: 0 0 4px; line-he
 .resume-info .ri .k { font-size: 15px; }
 .resume-info .ri strong { color: var(--ink); font-weight: 800; }
 
+/* ---------- 早く始める効果 / 先延ばし / インフレ ---------- */
+.age-rows { margin-top: 18px; display: grid; gap: 16px; }
+.age-row .ah {
+  display: flex; align-items: baseline; gap: 8px; margin-bottom: 7px;
+}
+.age-row .who { font-size: 13.5px; font-weight: 800; color: var(--ink); }
+.age-row .yrs { font-size: 11.5px; color: var(--ink-3); }
+.age-row .av {
+  margin-left: auto; font-size: 16px; font-weight: 800;
+  font-variant-numeric: tabular-nums; color: var(--navy);
+}
+.age-row .atrack { height: 30px; border-radius: 8px; background: var(--surface); overflow: hidden; }
+.age-row .afill {
+  height: 100%; border-radius: 8px;
+  background: linear-gradient(90deg, var(--navy) 0%, var(--mint) 100%);
+  animation: growBar .9s cubic-bezier(.22,.9,.3,1) both;
+}
+.age-row.later .afill { background: linear-gradient(90deg, #8fa4b6 0%, #b6c4d1 100%); }
+.age-row.later .av { color: var(--ink-3); }
+@keyframes growBar { from { transform: scaleX(0); transform-origin: left; } to { transform: scaleX(1); } }
+
+.fact-note {
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--r-md); padding: 14px 16px; margin-top: 18px;
+  font-size: 12.5px; line-height: 1.85; color: var(--ink-2);
+}
+.fact-note strong { color: var(--navy); font-weight: 800; }
+.fact-note .big {
+  display: block; font-size: 17px; font-weight: 800; color: var(--navy);
+  margin: 2px 0 6px; font-variant-numeric: tabular-nums;
+}
+.fact-note.calm strong { color: var(--ink); }
+
+.delay-table { width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 13px; }
+.delay-table th, .delay-table td {
+  padding: 11px 8px; text-align: right; border-bottom: 1px solid var(--line);
+  font-variant-numeric: tabular-nums;
+}
+.delay-table th {
+  font-size: 11.5px; color: var(--ink-3); font-weight: 700; text-align: right;
+}
+.delay-table th:first-child, .delay-table td:first-child { text-align: left; }
+.delay-table td.now { font-weight: 800; color: var(--ink); }
+.delay-table td.later { color: var(--ink-3); }
+.delay-table td.gap { font-weight: 800; color: var(--bad); }
+
+.infl-steps { display: flex; align-items: center; gap: 8px; margin-top: 18px; }
+.infl-step {
+  flex: 1; text-align: center; background: var(--surface);
+  border: 1px solid var(--line); border-radius: var(--r-md); padding: 14px 6px;
+}
+.infl-step .k { font-size: 11px; color: var(--ink-3); font-weight: 700; }
+.infl-step .v {
+  font-size: 18px; font-weight: 800; margin-top: 4px; font-variant-numeric: tabular-nums;
+}
+.infl-step.a .v { color: var(--ink); }
+.infl-step.b .v { color: var(--gold); }
+.infl-step.c .v { color: var(--bad); }
+.infl-arrow { color: var(--ink-3); font-size: 13px; flex: none; }
+
+/* ---------- 同じタイプの人の平均 ---------- */
+.ta-hero { display: flex; align-items: stretch; gap: 10px; margin-top: 18px; }
+.ta-box {
+  flex: 1; text-align: center; border-radius: var(--r-md); padding: 15px 8px;
+  border: 1px solid var(--line); background: var(--surface);
+}
+.ta-box .k { font-size: 11px; font-weight: 700; color: var(--ink-3); }
+.ta-box .v {
+  font-size: 21px; font-weight: 800; margin-top: 5px; font-variant-numeric: tabular-nums;
+}
+.ta-box .v small { font-size: 12px; font-weight: 700; margin-left: 1px; }
+.ta-box.you { background: var(--navy-soft); border-color: color-mix(in srgb, var(--navy) 22%, #fff); }
+.ta-box.you .v { color: var(--navy); }
+.ta-box.avg .v { color: var(--ink-2); }
+.ta-vs {
+  align-self: center; font-size: 11px; font-weight: 800; color: var(--ink-3); flex: none;
+}
+.ta-comment {
+  display: flex; align-items: flex-start; gap: 9px;
+  border-radius: var(--r-md); padding: 13px 15px; margin-top: 14px;
+  font-size: 13px; line-height: 1.8; color: var(--ink-2);
+}
+.ta-comment.over { background: var(--mint-soft); border: 1px solid color-mix(in srgb, var(--mint) 30%, #fff); }
+.ta-comment.under { background: var(--gold-soft); border: 1px solid rgba(184,134,11,.3); }
+.ta-comment.same { background: var(--surface); border: 1px solid var(--line); }
+.ta-comment strong { color: var(--ink); font-weight: 800; }
+
+/* 小さめのロック(カードの中に入れる版) */
+.locked.mini { margin: 18px 0 0; box-shadow: none; }
+.locked.mini .locked-overlay { padding: 120px 16px 20px; }
+.locked.mini .locked-overlay h3 { font-size: 15.5px; }
+.locked.mini .locked-overlay .lockic { width: 38px; height: 38px; font-size: 18px; }
+.peek-line { display: flex; align-items: center; gap: 10px; margin-bottom: 11px; font-size: 13px; }
+.peek-line .lb { font-weight: 700; }
+.peek-line .vl { margin-left: auto; font-weight: 800; }
+.btn-unlock-mini {
+  width: 100%; padding: 13px; border: none; border-radius: var(--r-md);
+  background: linear-gradient(135deg, var(--gold-bright), var(--gold));
+  color: #3a2a00; font-family: inherit; font-size: 14px; font-weight: 800; cursor: pointer;
+  box-shadow: 0 4px 14px rgba(184,134,11,.28);
+  transition: transform .16s ease, box-shadow .16s ease;
+}
+.btn-unlock-mini:hover { transform: translateY(-2px); box-shadow: 0 7px 20px rgba(184,134,11,.36); }
+@media (prefers-reduced-motion: reduce) {
+  .age-row .afill { animation: none; }
+  .btn-unlock-mini { transition: none; }
+  .btn-unlock-mini:hover { transform: none; }
+}
+
 /* ---------- SNSシェアボタン ---------- */
 .social { display: flex; gap: 10px; margin-top: 16px; }
 .social-btn {
@@ -1157,6 +1266,11 @@ footer.foot {
       </p>
     </div>
 
+    <!-- 早く始めることの効果(無料) -->
+    <div class="card reveal" id="early-card"></div>
+    <div class="card reveal" id="delay-card"></div>
+    <div class="card reveal" id="inflation-card"></div>
+
     <!-- 投資タイプ診断(無料・5問) -->
     <div class="card reveal" id="quiz-card">
       <h2 class="section-title"><span class="ic">🧭</span>投資タイプ診断</h2>
@@ -1175,6 +1289,9 @@ footer.foot {
       <div id="answers-wrap"></div>
       <button class="btn-text" id="btn-quiz-retry" style="display:block; margin:14px auto 0;" hidden>もう一度診断する</button>
     </div>
+
+    <!-- 同じタイプの人の平均(無料の最後・有料への導線) -->
+    <div class="card reveal" id="typeavg-card" hidden></div>
 
     <!-- SNSシェア(無料側) -->
     <div class="card reveal" id="social-card" hidden>
