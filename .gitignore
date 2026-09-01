@@ -1,0 +1,18 @@
+# OSが勝手に作るファイル
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# エディタの設定
+.vscode/
+.idea/
+
+# 依存関係・生成物(今は使っていないが、増えたときに同期が重くならないように)
+node_modules/
+.netlify/
+dist/
+build/
+
+# 秘密情報は絶対にコミットしない(Stripeの鍵など)
+.env
+.env.*
