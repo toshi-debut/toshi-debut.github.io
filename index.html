@@ -506,7 +506,7 @@ input[type=range] { width: 100%; accent-color: var(--navy); height: 26px; margin
 .legend { display: flex; flex-wrap: wrap; gap: 8px 14px; justify-content: center; margin-top: 12px; font-size: 12px; }
 .legend .item { display: flex; align-items: center; gap: 6px; color: var(--ink-2); }
 .legend .swatch { width: 14px; height: 3px; border-radius: 2px; }
-.legend .swatch.dashed { background: repeating-linear-gradient(to right, var(--principal) 0 4px, transparent 4px 7px); }
+.legend .swatch.block { width: 13px; height: 13px; border-radius: 4px; }
 .legend .val { font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums; }
 
 .stat-row {
@@ -557,6 +557,85 @@ table.data-table thead th { color: var(--ink-3); font-weight: 800; font-size: 11
   background: var(--surface); border-radius: var(--r-sm);
   padding: 14px 15px; font-size: 13px; color: var(--ink-2); margin-top: 14px; line-height: 1.75;
 }
+
+/* ---------- 導入画面 ---------- */
+@keyframes floatY { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+@keyframes ripple {
+  0%   { transform: scale(.7); opacity: .55; }
+  100% { transform: scale(1.9); opacity: 0; }
+}
+.intro { text-align: center; padding: 26px 0 0; }
+.intro-visual { position: relative; height: 150px; display: grid; place-items: center; margin-bottom: 6px; }
+.intro-visual .ring {
+  position: absolute; width: 108px; height: 108px; border-radius: 50%;
+  border: 2px solid var(--mint); animation: ripple 2.8s ease-out infinite;
+}
+.intro-visual .ring:nth-child(2) { animation-delay: .9s; }
+.intro-visual .ring:nth-child(3) { animation-delay: 1.8s; }
+.intro-visual .orb {
+  position: relative; width: 108px; height: 108px; border-radius: 50%;
+  background: linear-gradient(150deg, var(--navy) 0%, var(--navy-deep) 100%);
+  display: grid; place-items: center; font-size: 50px;
+  box-shadow: 0 14px 34px rgba(10,37,64,.32);
+  animation: floatY 3.6s ease-in-out infinite;
+}
+.intro h1 {
+  font-size: 31px; font-weight: 800; line-height: 1.4;
+  letter-spacing: -.02em; margin: 6px 0 10px;
+}
+.intro h1 .hl {
+  background: linear-gradient(transparent 62%, rgba(15,163,107,.32) 62%);
+  padding: 0 2px;
+}
+.intro .lead { font-size: 14.5px; color: var(--ink-2); margin: 0 0 20px; line-height: 1.85; }
+
+.value-badge {
+  display: inline-flex; align-items: center; gap: 9px;
+  background: var(--gold-soft); border: 1px solid rgba(184,134,11,.34);
+  border-radius: 14px; padding: 11px 16px; margin-bottom: 22px;
+  font-size: 12.5px; color: var(--ink-2); text-align: left; line-height: 1.6;
+}
+.value-badge .vi { font-size: 20px; }
+.value-badge strong { color: var(--gold); font-weight: 800; }
+
+.intro-points { display: grid; gap: 10px; margin-bottom: 24px; text-align: left; }
+.intro-point {
+  display: flex; align-items: center; gap: 12px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r-md); padding: 13px 15px;
+}
+.intro-point .pi {
+  width: 38px; height: 38px; border-radius: 12px; flex-shrink: 0;
+  background: var(--navy-soft); display: grid; place-items: center; font-size: 19px;
+}
+.intro-point .pt { font-size: 13.5px; font-weight: 800; }
+.intro-point .pd { font-size: 12px; color: var(--ink-3); line-height: 1.55; }
+.intro-meta { font-size: 11.5px; color: var(--ink-3); margin-top: 12px; }
+
+/* ---------- 利用者の声 ---------- */
+.reviews {
+  display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory;
+  padding: 4px 16px 14px; margin: 14px -16px 0;
+  scrollbar-width: none;
+}
+.reviews::-webkit-scrollbar { display: none; }
+.review {
+  flex: 0 0 250px; scroll-snap-align: start;
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--r-md); padding: 16px; box-shadow: var(--shadow-1);
+  display: flex; flex-direction: column;
+}
+.review .stars { color: var(--gold-bright); font-size: 14px; letter-spacing: 2px; }
+.review .rt { font-size: 13px; color: var(--ink); line-height: 1.75; margin: 8px 0 12px; flex: 1; }
+.review .who { display: flex; align-items: center; gap: 9px; }
+.review .av {
+  width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0;
+  background: var(--navy-soft); color: var(--navy);
+  display: grid; place-items: center; font-size: 12px; font-weight: 800;
+}
+.review .nm { font-size: 12px; font-weight: 800; }
+.review .at { font-size: 11px; color: var(--ink-3); }
+.reviews-note { font-size: 11px; color: var(--ink-3); margin: 2px 0 0; }
 
 /* ---------- 用語ツールチップ ---------- */
 .term {
@@ -674,7 +753,50 @@ footer.foot {
 <body>
 <div class="wrap">
 
-  <header class="top">
+  <!-- ============ STEP0: 導入 ============ -->
+  <div id="screen-intro">
+    <div class="intro">
+      <div class="logo reveal" style="margin-top:24px;"><span class="dot"></span>TOSHI DEBUT</div>
+
+      <div class="intro-visual reveal">
+        <span class="ring"></span><span class="ring"></span><span class="ring"></span>
+        <div class="orb">📈</div>
+      </div>
+
+      <h1 class="reveal">あなたの投資タイプ、<br><span class="hl">当ててみせます。</span></h1>
+      <p class="lead reveal">
+        バイト代と支出を入れるだけ。<strong>3分</strong>で、<br>
+        あなたに合う投資スタイルと毎月の金額がわかります。
+      </p>
+
+      <div class="value-badge reveal">
+        <span class="vi">💰</span>
+        <span>ここまでは<strong>すべて無料</strong>。家計相談1回分(約5,000円相当)の内容を、登録なしで確かめられます。</span>
+      </div>
+
+      <div class="intro-points reveal">
+        <div class="intro-point">
+          <span class="pi">🏠</span>
+          <span><span class="pt">一人暮らしでも実家でもOK</span><span class="pd">住まいに合わせて聞く項目が変わります</span></span>
+        </div>
+        <div class="intro-point">
+          <span class="pi">👀</span>
+          <span><span class="pt">「意外と使ってた」が見える</span><span class="pd">同世代の平均と項目ごとに比べられます</span></span>
+        </div>
+        <div class="intro-point">
+          <span class="pi">🧭</span>
+          <span><span class="pt">投資タイプを判定</span><span class="pd">3つの質問であなたのスタイルを診断します</span></span>
+        </div>
+      </div>
+
+      <div class="reveal">
+        <button class="btn-primary" id="btn-start">診断をはじめる →</button>
+        <div class="intro-meta">所要時間 約3分 ／ 登録・ログイン不要 ／ 入力内容は端末の外に出ません</div>
+      </div>
+    </div>
+  </div>
+
+  <header class="top" id="app-header" hidden>
     <div class="logo"><span class="dot"></span>TOSHI DEBUT</div>
     <h1 id="head-title">毎月いくら<em>投資</em>に回せる?</h1>
     <p id="head-sub">支出を項目ごとに入れると「意外と使っていた金額」が見えます</p>
@@ -688,7 +810,7 @@ footer.foot {
   </header>
 
   <!-- ============ STEP1: 入力 ============ -->
-  <div id="screen-input">
+  <div id="screen-input" hidden>
     <div class="card reveal">
       <h2 class="section-title"><span class="ic">🏠</span>いまの住まいは?</h2>
       <p class="section-sub">かかる費用が変わるので、先に選んでください</p>
@@ -786,11 +908,19 @@ footer.foot {
       <div id="type-card-wrap"></div>
     </div>
 
+    <!-- 利用者の声 -->
+    <div class="card reveal" id="reviews-card" hidden>
+      <h2 class="section-title"><span class="ic">💬</span>利用者の声</h2>
+      <p class="section-sub">実際に診断を受けた人からのコメントです</p>
+      <div class="reviews" id="reviews-list"></div>
+      <p class="reviews-note">※現在はサンプルの内容を表示しています。</p>
+    </div>
+
     <!-- 有料の壁 -->
     <div id="paywall-zone" hidden>
       <div class="locked">
         <div class="locked-peek" aria-hidden="true">
-          <div class="peek-title">あなたにおすすめの投資信託</div>
+          <div class="peek-title">あなたにおすすめの投資プラン</div>
           <div class="peek-bar" id="peek-bar"></div>
           <div id="peek-rows"></div>
           <div class="peek-title" style="margin-top:18px;">20年後の資産シミュレーション</div>
@@ -830,27 +960,15 @@ footer.foot {
   <div id="screen-premium" hidden>
 
     <div class="tabbar" id="tabbar">
-      <button class="tab selected" data-tab="fund"><span class="ti">💼</span>投資信託</button>
-      <button class="tab" data-tab="sim"><span class="ti">📈</span>積立試算</button>
+      <button class="tab selected" data-tab="sim"><span class="ti">📈</span>積立試算</button>
+      <button class="tab" data-tab="fund"><span class="ti">💼</span>投資プラン</button>
       <button class="tab" data-tab="goal"><span class="ti">🎯</span>目標逆算</button>
       <button class="tab" data-tab="todo"><span class="ti">✅</span>やること</button>
       <button class="tab" data-tab="share"><span class="ti">📱</span>シェア</button>
     </div>
 
-    <!-- タブ1: 投資信託 -->
-    <div class="tab-panel" data-panel="fund">
-      <div class="card">
-        <span class="premium-flag">★ PREMIUM</span>
-        <h2 class="section-title"><span class="ic">💼</span>あなたにおすすめの投資信託</h2>
-        <p class="section-sub" id="port-sub"></p>
-        <div class="port-bar" id="port-bar"></div>
-        <div id="port-list"></div>
-        <div class="alloc-comment" id="port-comment"></div>
-      </div>
-    </div>
-
-    <!-- タブ2: 積立試算 -->
-    <div class="tab-panel" data-panel="sim" hidden>
+    <!-- タブ1: 積立試算 -->
+    <div class="tab-panel" data-panel="sim">
       <div class="card">
         <span class="premium-flag">★ PREMIUM</span>
         <h2 class="section-title"><span class="ic">📈</span>NISA積立シミュレーション</h2>
@@ -911,6 +1029,18 @@ footer.foot {
         <p class="section-sub" id="boost-sub"></p>
         <div id="boost-list" style="margin-top:14px;"></div>
         <p style="font-size:11.5px; color:var(--ink-3); margin:8px 0 0;" id="boost-note"></p>
+      </div>
+    </div>
+
+    <!-- タブ2: 投資プラン -->
+    <div class="tab-panel" data-panel="fund" hidden>
+      <div class="card">
+        <span class="premium-flag">★ PREMIUM</span>
+        <h2 class="section-title"><span class="ic">💼</span>あなたにおすすめの投資プラン</h2>
+        <p class="section-sub" id="port-sub"></p>
+        <div class="port-bar" id="port-bar"></div>
+        <div id="port-list"></div>
+        <div class="alloc-comment" id="port-comment"></div>
       </div>
     </div>
 

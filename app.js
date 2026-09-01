@@ -217,7 +217,7 @@ function linkifyTerms(root) {
 // ============================================================
 // 画面遷移
 // ============================================================
-const SCREENS = ['screen-input', 'screen-result', 'screen-premium'];
+const SCREENS = ['screen-intro', 'screen-input', 'screen-result', 'screen-premium'];
 const HEADINGS = {
   'screen-input': ['毎月いくら<em>投資</em>に回せる?', '支出を項目ごとに入れると「意外と使っていた金額」が見えます'],
   'screen-result': ['あなたの<em>診断結果</em>', ''],
@@ -226,19 +226,27 @@ const HEADINGS = {
 
 function goScreen(id, stepNo) {
   SCREENS.forEach((s) => { $(s).hidden = s !== id; });
-  const [title, sub] = HEADINGS[id];
-  $('head-title').innerHTML = title;
-  $('head-sub').textContent = sub || (living ? `${LIVING_LABEL[living]}の場合の結果です` : '');
 
-  document.querySelectorAll('#steps .s').forEach((s) => {
-    const n = Number(s.dataset.step);
-    s.classList.toggle('on', n === stepNo);
-    s.classList.toggle('done', n < stepNo);
-  });
+  // 導入画面は専用のビジュアルを使うので、共通ヘッダーは出さない
+  const isIntro = id === 'screen-intro';
+  $('app-header').hidden = isIntro;
+
+  if (!isIntro) {
+    const [title, sub] = HEADINGS[id];
+    $('head-title').innerHTML = title;
+    $('head-sub').textContent = sub || (living ? `${LIVING_LABEL[living]}の場合の結果です` : '');
+    document.querySelectorAll('#steps .s').forEach((s) => {
+      const n = Number(s.dataset.step);
+      s.classList.toggle('on', n === stepNo);
+      s.classList.toggle('done', n < stepNo);
+    });
+  }
 
   replayReveal($(id));
   window.scrollTo({ top: 0, behavior: reduceMotion() ? 'auto' : 'smooth' });
 }
+
+$('btn-start').addEventListener('click', () => goScreen('screen-input', 1));
 
 // ============================================================
 // フォームの生成
@@ -516,6 +524,7 @@ function renderTypeCard(key) {
 
   $('lock-type').textContent = p.label;
   renderPeek(p);
+  renderReviews();              // 課金の直前に利用者の声を出す
   $('paywall-zone').hidden = false;
   if (!reduceMotion()) {
     $('paywall-zone').scrollIntoView?.({ behavior: 'smooth', block: 'nearest' });
@@ -572,6 +581,36 @@ function renderPortfolio(key) {
 }
 
 // ============================================================
+// 利用者の声
+// 実際の声に差し替えるときは、この配列を書き換えるだけでよい
+// ============================================================
+const REVIEWS = [
+  { name: 'K.S', attr: '大学2年・20歳', stars: 5,
+    text: '自分の投資タイプが分かって面白かった。バランス型って言われて納得。何から買えばいいか迷わなくなりました。' },
+  { name: 'M.T', attr: '大学3年・21歳', stars: 5,
+    text: 'サブスクとコンビニだけで月1万円使ってたのが衝撃。300円でここまで分かるのはお得だと思う。' },
+  { name: 'R.A', attr: '大学1年・19歳', stars: 4,
+    text: '実家暮らしでも項目が合っていて入力しやすかった。やることリストの通りに口座開設まで進めました。' },
+  { name: 'Y.N', attr: '大学4年・22歳', stars: 5,
+    text: '「あと月1,000円で20年後に41万円変わる」が刺さった。金額を上げるモチベーションになります。' },
+  { name: 'H.K', attr: '大学院1年・23歳', stars: 5,
+    text: '留学資金の目標から毎月いくら必要か逆算できるのが良い。ぼんやりした目標が数字になりました。' },
+];
+
+function renderReviews() {
+  $('reviews-list').innerHTML = REVIEWS.map((r) => `
+    <div class="review">
+      <div class="stars" aria-label="5段階中${r.stars}">${'★'.repeat(r.stars)}${'☆'.repeat(5 - r.stars)}</div>
+      <div class="rt">${r.text}</div>
+      <div class="who">
+        <span class="av">${r.name.charAt(0)}</span>
+        <span><span class="nm">${r.name}</span><br><span class="at">${r.attr}</span></span>
+      </div>
+    </div>`).join('');
+  $('reviews-card').hidden = false;
+}
+
+// ============================================================
 // 課金導線(ダミー)
 // ============================================================
 const modal = $('paywall-modal');
@@ -585,7 +624,7 @@ $('btn-fake-pay').addEventListener('click', () => {
   renderPortfolio(selectedRisk || 'balance');
   refreshSim();
   goScreen('screen-premium', 3);
-  showTab('fund');
+  showTab('sim');
 });
 
 $('btn-back-result').addEventListener('click', () => goScreen('screen-result', 2));
@@ -678,54 +717,100 @@ $('cmp-mode').addEventListener('change', () => {
 
 let chart = null;
 
+// 棒グラフに出す年の区切り(5年後・10年後…のようにキリよく4本前後にする)
+function milestones(y) {
+  if (y <= 6) return Array.from({ length: y }, (_, i) => i + 1);
+  const step = Math.max(1, Math.round(y / 4));
+  const out = [];
+  for (let k = step; k < y; k += step) out.push(k);
+  out.push(y);
+  return [...new Set(out)];
+}
+
 function buildChart() {
-  const labels = Array.from({ length: years + 1 }, (_, y) => `${y}年`);
   const s = RATES.map((r) => fvSeries(monthly, r, years));
   const principal = Array.from({ length: years + 1 }, (_, y) => monthly * y * 12);
-  const colors = [cssVar('--series-3'), cssVar('--series-5'), cssVar('--series-7')];
+  const rateColors = [cssVar('--series-3'), cssVar('--series-5'), cssVar('--series-7')];
   const baseIdx = RATES.findIndex((r) => Math.abs(r - baseRate) < 1e-9);
 
-  // 既定は選択中の利回り1本だけ。比較モードのときだけ3本すべて描く
-  const shownIdx = compareMode ? RATES.map((_, i) => i) : [baseIdx];
+  const marks = milestones(years);
+  const labels = marks.map((y) => `${y}年後`);
+  const colPrincipal = cssVar('--cat-1');   // 元本
+  const colGain = cssVar('--cat-3');        // 運用益
 
-  const datasets = [
-    { label: '元本', data: principal, borderColor: cssVar('--principal'), borderDash: [4, 3], borderWidth: 2, pointRadius: 0, tension: 0 },
-    ...shownIdx.map((i) => ({
-      label: `年${Math.round(RATES[i] * 100)}%`,
-      data: s[i],
-      borderColor: colors[i],
-      borderWidth: i === baseIdx ? 3.5 : 2,
-      pointRadius: 0,
-      tension: 0.15,
-      fill: shownIdx.length === 1 ? 'origin' : false,
-      backgroundColor: 'rgba(42,120,214,.10)',
-    })),
-  ];
+  let datasets;
+  let legendItems;
+
+  if (compareMode) {
+    // 比較モード:利回りごとの合計額を並べた棒グラフ
+    datasets = RATES.map((r, i) => ({
+      label: `年${Math.round(r * 100)}%`,
+      data: marks.map((y) => Math.round(s[i][y])),
+      backgroundColor: rateColors[i],
+      borderRadius: 6,
+      borderSkipped: false,
+    }));
+    legendItems = RATES.map((r, i) => ({
+      key: `年${Math.round(r * 100)}%`, color: rateColors[i], val: s[i][years],
+    }));
+  } else {
+    // 既定:元本と運用益を1本の棒の中で積み上げる
+    datasets = [
+      {
+        label: '元本(積み立てた分)',
+        data: marks.map((y) => Math.round(principal[y])),
+        backgroundColor: colPrincipal,
+        borderRadius: { topLeft: 0, topRight: 0, bottomLeft: 6, bottomRight: 6 },
+        borderSkipped: false,
+      },
+      {
+        label: '運用益(増えた分)',
+        data: marks.map((y) => Math.round(s[baseIdx][y] - principal[y])),
+        backgroundColor: colGain,
+        borderRadius: { topLeft: 6, topRight: 6, bottomLeft: 0, bottomRight: 0 },
+        borderSkipped: false,
+      },
+    ];
+    legendItems = [
+      { key: '元本', color: colPrincipal, val: principal[years], block: true },
+      { key: '運用益', color: colGain, val: s[baseIdx][years] - principal[years], block: true },
+    ];
+  }
 
   if (chart) chart.destroy();
   chart = new Chart($('sim-chart').getContext('2d'), {
-    type: 'line',
+    type: 'bar',
     data: { labels, datasets },
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      animation: { duration: reduceMotion() ? 0 : 260 },
+      animation: { duration: reduceMotion() ? 0 : 320 },
       interaction: { mode: 'index', intersect: false },
       plugins: {
         legend: { display: false },
         tooltip: {
           backgroundColor: cssVar('--navy-deep'),
           titleColor: '#fff',
-          bodyColor: 'rgba(255,255,255,.85)',
-          padding: 11,
+          bodyColor: 'rgba(255,255,255,.9)',
+          footerColor: '#7fe3b8',
+          padding: 12,
           cornerRadius: 10,
-          displayColors: false,
-          callbacks: { label: (ctx) => `${ctx.dataset.label}: ${yen(ctx.parsed.y)}` },
+          callbacks: {
+            label: (ctx) => ` ${ctx.dataset.label}: ${yen(ctx.parsed.y)}`,
+            // 積み上げのときは合計も出す
+            footer: (items) => (compareMode ? '' :
+              '合計: ' + yen(items.reduce((sum, it) => sum + it.parsed.y, 0))),
+          },
         },
       },
       scales: {
-        x: { grid: { display: false }, ticks: { color: cssVar('--ink-3'), maxTicksLimit: 6, autoSkip: true, font: { size: 11 } } },
+        x: {
+          stacked: !compareMode,
+          grid: { display: false },
+          ticks: { color: cssVar('--ink-3'), font: { size: 11.5, weight: '700' } },
+        },
         y: {
+          stacked: !compareMode,
           beginAtZero: true,
           grid: { color: cssVar('--line') },
           border: { display: false },
@@ -736,12 +821,9 @@ function buildChart() {
   });
 
   // 凡例に終了時点の金額を直接表示(色だけに意味を持たせない)
-  $('chart-legend').innerHTML = [
-    { key: '元本', color: cssVar('--principal'), dashed: true, val: principal[years] },
-    ...shownIdx.map((i) => ({ key: `年${Math.round(RATES[i] * 100)}%`, color: colors[i], val: s[i][years] })),
-  ].map((x) => `
+  $('chart-legend').innerHTML = legendItems.map((x) => `
     <div class="item">
-      <span class="swatch${x.dashed ? ' dashed' : ''}" style="${x.dashed ? '' : `background:${x.color}`}"></span>
+      <span class="swatch${x.block ? ' block' : ''}" style="background:${x.color}"></span>
       ${x.key} <span class="val">${manEn(x.val)}</span>
     </div>`).join('');
 
@@ -751,7 +833,7 @@ function buildChart() {
   $('fv-gain').textContent = manEn(main - prin);
   $('fv-principal').textContent = manEn(prin);
 
-  renderTable(principal, s, shownIdx);
+  renderTable(principal, s, compareMode ? RATES.map((_, i) => i) : [baseIdx]);
 }
 
 function renderTable(principal, s, shownIdx) {
@@ -1119,8 +1201,8 @@ function drawShareCard() {
   ctx.textAlign = 'left';
   ctx.fillStyle = '#47596b';
   ctx.font = `bold 26px ${FONT}`;
-  ctx.fillText(compareMode ? '資産の推移(年3% / 5% / 7%)' : `資産の推移(年${Math.round(baseRate * 100)}%)`, cx + 40, cy + 48);
-  drawMiniChart(ctx, cx + 40, cy + 76, cw - 80, ch - 140);
+  ctx.fillText(`資産の推移(年${Math.round(baseRate * 100)}%で試算)`, cx + 40, cy + 48);
+  drawMiniChart(ctx, cx + 40, cy + 86, cw - 80, ch - 176);
 
   // ポートフォリオ
   ctx.fillStyle = 'rgba(255,255,255,.66)';
@@ -1164,57 +1246,55 @@ function drawShareCard() {
   ctx.textAlign = 'left';
 }
 
-// カード内の折れ線グラフ(Chart.jsは使わず自前で描く)
+// カード内の積み上げ棒グラフ(Chart.jsは使わず自前で描く。画面のグラフと同じ見せ方)
 function drawMiniChart(ctx, x, y, w, h) {
-  const allColors = ['#86b6ef', '#2a78d6', '#104281'];
   const baseIdx = RATES.findIndex((r) => Math.abs(r - baseRate) < 1e-9);
-  const shownIdx = compareMode ? RATES.map((_, i) => i) : [baseIdx];
-  const series = shownIdx.map((i) => fvSeries(monthly, RATES[i], years));
-  const principal = Array.from({ length: years + 1 }, (_, i) => monthly * i * 12);
-  const max = Math.max(1, ...series.map((s) => s[years]));
-  const px = (i) => x + (w * i) / years;
+  const total = fvSeries(monthly, RATES[baseIdx], years);
+  const marks = milestones(years);
+  const max = Math.max(1, total[years]);
   const py = (v) => y + h - (h * v) / max;
 
-  ctx.strokeStyle = '#dce6ef';
+  ctx.strokeStyle = '#e3eaf1';
   ctx.lineWidth = 1.5;
   for (let g = 0; g <= 4; g++) {
     const gy = y + (h * g) / 4;
     ctx.beginPath(); ctx.moveTo(x, gy); ctx.lineTo(x + w, gy); ctx.stroke();
   }
 
-  // 面を薄く塗る
-  if (shownIdx.length === 1) {
-    ctx.fillStyle = 'rgba(42,120,214,.12)';
-    ctx.beginPath();
-    ctx.moveTo(px(0), py(0));
-    series[0].forEach((v, i) => ctx.lineTo(px(i), py(v)));
-    ctx.lineTo(px(years), py(0));
-    ctx.closePath(); ctx.fill();
-  }
+  const slot = w / marks.length;
+  const bw = Math.min(78, slot * 0.56);
+  marks.forEach((m, i) => {
+    const cx = x + slot * (i + 0.5);
+    const prin = monthly * m * 12;
+    const yTop = py(total[m]);
+    const yMid = py(prin);
+    const yBase = py(0);
 
-  ctx.strokeStyle = '#8b98a4';
-  ctx.setLineDash([7, 6]);
-  ctx.lineWidth = 3;
-  ctx.beginPath();
-  principal.forEach((v, i) => (i === 0 ? ctx.moveTo(px(i), py(v)) : ctx.lineTo(px(i), py(v))));
-  ctx.stroke();
-  ctx.setLineDash([]);
+    ctx.fillStyle = '#1baf7a';                       // 運用益
+    roundRect(ctx, cx - bw / 2, yTop, bw, Math.max(2, yMid - yTop), 8); ctx.fill();
+    ctx.fillStyle = '#2a78d6';                       // 元本
+    ctx.fillRect(cx - bw / 2, yMid, bw, Math.max(2, yBase - yMid));
 
-  series.forEach((s, si) => {
-    ctx.strokeStyle = allColors[shownIdx[si]];
-    ctx.lineWidth = 5;
-    ctx.lineJoin = 'round';
-    ctx.beginPath();
-    s.forEach((v, i) => (i === 0 ? ctx.moveTo(px(i), py(v)) : ctx.lineTo(px(i), py(v))));
-    ctx.stroke();
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#0c1c2c';
+    ctx.font = `bold 21px ${FONT}`;
+    ctx.fillText(manEn(total[m]), cx, yTop - 12);
+    ctx.fillStyle = '#7b8b9c';
+    ctx.font = `20px ${FONT}`;
+    ctx.fillText(`${m}年後`, cx, y + h + 32);
   });
-
-  ctx.fillStyle = '#7b8b9c';
-  ctx.font = `20px ${FONT}`;
-  ctx.fillText('0年', x, y + h + 30);
-  ctx.textAlign = 'right';
-  ctx.fillText(`${years}年 / 最大 ${manEn(max)}`, x + w, y + h + 30);
   ctx.textAlign = 'left';
+
+  // 凡例
+  const lg = (lx, color, label) => {
+    ctx.fillStyle = color;
+    roundRect(ctx, lx, y + h + 52, 18, 18, 5); ctx.fill();
+    ctx.fillStyle = '#47596b';
+    ctx.font = `20px ${FONT}`;
+    ctx.fillText(label, lx + 27, y + h + 68);
+  };
+  lg(x, '#2a78d6', '元本');
+  lg(x + 150, '#1baf7a', '運用益');
 }
 
 $('btn-make-card').addEventListener('click', () => {
