@@ -398,10 +398,12 @@ function diagnose() {
 
   setMonthly(Math.max(1000, Math.round(d.surplus / 1000) * 1000));
 
-  // 積立額が決まってから、早く始めることの効果を出す
+  // 積立額が決まってから、金額に依存するセクションを作る
+  renderOpportunity();
   renderEarly();
   renderDelay();
   renderInflation();
+  renderToc();
 
   // すでに5問答え終わっている状態で金額を直した場合、
   // 余裕額が変わればタイプも変わりうるので判定し直す
@@ -413,6 +415,11 @@ function diagnose() {
 
   stage = 'result';
   saveProgress();
+  // 診断し直したときは、それまで進んでいたところに戻す
+  // (答え終わっていれば結果、診断の途中なら設問、まだなら最初から)
+  const started = quizAnswers.some((a) => a !== null);
+  const done = quizAnswers.every((a) => a !== null);
+  showStep(done ? 4 : started ? 3 : 1, { scroll: false });
   goScreen('screen-result', 2);
   countUp($('result-amount'), d.surplus, 900);
 }
@@ -463,6 +470,111 @@ function commentFor(d) {
   if (x < 15000) return `${num(x)}円は、学生が無理なく積み立てられる現実的な金額です。この額を20年続けるだけで、結果はかなり変わります。`;
   if (x < 30000) return `${num(x)}円はしっかり投資に回せる余裕額です。全額を投資に回さず、一部は突発的な出費用に現金で残しておくと安心です。`;
   return `${num(x)}円はかなり余裕があります。NISAのつみたて投資枠を十分に活かせる水準です。`;
+}
+
+// ============================================================
+// 診断結果のステップ送り
+//
+// 1画面に全部を縦積みすると長すぎるので、5つのステップに分けて
+// 1つずつ読み進めてもらう。ページの再読み込みはせず表示を切り替えるだけ。
+// ============================================================
+const RESULT_STEPS = [
+  { n: 1, label: '① 余裕額' },
+  { n: 2, label: '② もし投資したら' },
+  { n: 3, label: '③ タイプ診断' },
+  { n: 4, label: '④ 診断結果' },
+  { n: 5, label: '⑤ 詳しいプラン' },
+];
+let resultStep = 1;
+
+function showStep(n, opts) {
+  resultStep = n;
+  document.querySelectorAll('#screen-result .step').forEach((sec) => {
+    const on = Number(sec.dataset.step) === n;
+    sec.hidden = !on;
+    if (on) { sec.style.animation = 'none'; void sec.offsetWidth; sec.style.animation = ''; }
+  });
+  replayReveal(document.querySelector(`#screen-result .step[data-step="${n}"]`));
+  renderProgress();
+  if (!opts || opts.scroll !== false) {
+    window.scrollTo({ top: 0, behavior: reduceMotion() ? 'auto' : 'smooth' });
+  }
+}
+
+document.addEventListener('click', (e) => {
+  const next = e.target.closest('.btn-step-next');
+  if (next) { showStep(Number(next.dataset.next)); return; }
+  const prev = e.target.closest('.btn-step-prev');
+  if (prev) showStep(Number(prev.dataset.prev));
+});
+
+// ============================================================
+// ステップ2: 「もし投資していたら」の機会損失プレビュー
+//
+// ここでは数字を1つだけ見せる。利回り別のグラフなど詳しい試算は
+// 最後(有料)まで取っておく。
+// ============================================================
+const OPP = { years: 20, rate: 0.05 };
+
+function renderOpportunity() {
+  const m = planMonthly();
+  const fv = futureValue(m, OPP.rate, OPP.years);
+  const saved = m * 12 * OPP.years;          // 投資せず貯金しただけの場合
+  const ratePct = Math.round(OPP.rate * 100);
+
+  $('opportunity-card').innerHTML = `
+    <h2 class="section-title"><span class="ic">✨</span>もし、この余裕額を投資に回したら</h2>
+    <p class="section-sub">毎月 ${num(m)}円 を年${ratePct}%で${OPP.years}年間続けた場合の目安です</p>
+    <div class="opp-main">
+      <div class="k">${OPP.years}年後には</div>
+      <div class="v">約${manEn(fv)}</div>
+      <div class="s">になる可能性があります</div>
+    </div>
+    <div class="opp-diff">
+      <span>💰</span>
+      <span>そのまま貯金していた場合は ${manEn(saved)}。
+        投資に回した場合との差は <strong>約${manEn(fv - saved)}</strong> になることもあります。</span>
+    </div>
+    <div class="opp-later">
+      <span>🔎</span>
+      <span>利回りを変えたときのグラフや、いつ・いくら貯まるかの詳しいシミュレーションは、
+        診断の最後にご用意しています。</span>
+    </div>
+    <p style="font-size:11px; color:var(--ink-3); margin:12px 0 0;">
+      ※年${ratePct}%はあくまで仮定の数字です。実際の運用成果を保証するものではありません。
+    </p>`;
+  linkifyTerms($('opportunity-card'));
+}
+
+// ============================================================
+// ステップ5: 有料コンテンツの目次プレビュー
+// ============================================================
+const PAID_TOC = [
+  { ic: '📈', t: 'NISA積立シミュレーション',
+    d: '金額・期間・利回りを自由に動かして、資産の増え方をグラフで確認できます' },
+  { ic: '💼', t: 'あなたにおすすめの投資プラン',
+    d: 'タイプに合わせて、何をどの比率で買えばいいかを商品名まで提案します' },
+  { ic: '🎯', t: '目標からの逆算プラン',
+    d: '「留学したい」「車がほしい」から、毎月いくら必要かを計算します' },
+  { ic: '✅', t: '今月からやることリスト',
+    d: '口座開設から積立設定まで、5ステップのチェックリストで案内します' },
+  { ic: '📱', t: 'シェア用の結果カード',
+    d: 'Instagramのストーリーズに貼れる縦長画像を作って保存できます' },
+];
+
+function renderToc() {
+  $('toc-card').innerHTML = `
+    <h2 class="section-title"><span class="ic">📖</span>この先で見られること</h2>
+    <p class="section-sub">診断結果をもとにした、あなた専用の5つの内容です</p>
+    <div class="toc-list">
+      ${PAID_TOC.map((x) => `
+        <div class="toc-item">
+          <span class="ti">${x.ic}</span>
+          <span><span class="tt">${x.t}</span><span class="td">${x.d}</span></span>
+          <span class="lk">🔒</span>
+        </div>`).join('')}
+    </div>`;
+  linkifyTerms($('toc-card'));
 }
 
 // ============================================================
@@ -681,17 +793,28 @@ function renderComparison(d) {
 
   const avgTotal = d.items.reduce((s, it) => s + avgOf(it), 0);
   const v = verdict(d.total, avgTotal);
-  $('cmp-list').innerHTML = rows + `
-    <div class="cmp-row" style="border-top:1px solid var(--line); padding-top:15px;">
+
+  // スマホで縦に長くなりすぎないよう、合計だけ先に見せて
+  // 項目ごとの内訳は折りたたんでおく
+  $('cmp-list').innerHTML = `
+    <div class="cmp-row cmp-total">
       <div class="cmp-head">
         <span class="name">支出の合計</span>
         <span class="pill ${v.cls}"><span class="ic">${v.ic}</span>${v.text}</span>
       </div>
-      <div class="cmp-foot" style="margin-top:6px;">
+      <div class="cmp-track">
+        <div class="cmp-fill" style="width:${Math.min(100, (d.total / (Math.max(d.total, avgTotal) * 1.25 || 1)) * 100)}%"></div>
+        <div class="cmp-avg" style="left:${Math.min(100, (avgTotal / (Math.max(d.total, avgTotal) * 1.25 || 1)) * 100)}%"></div>
+      </div>
+      <div class="cmp-foot">
         <span class="mine">あなた ${num(d.total)}円</span>
         <span>平均 ${num(avgTotal)}円</span>
       </div>
-    </div>`;
+    </div>
+    <details class="fold">
+      <summary>項目ごとに見る ▾</summary>
+      ${rows}
+    </details>`;
   $('cmp-sub').textContent = `濃いバーがあなた、縦線が${LIVING_LABEL[d.living]}の大学生の平均的な金額(目安)です`;
 }
 
@@ -1032,10 +1155,10 @@ function finishQuiz() {
   selectedRisk = typeFromScore(total);
   $('quiz-fill').style.width = '100%';
   renderQuiz();
-  renderTypeCard(selectedRisk, total);
+  renderTypeCard(selectedRisk, total, { scroll: false });   // 移動は showStep にまかせる
   if (paid) renderPortfolio(selectedRisk);   // 購入後に受け直したら有料側も作り直す
-  renderProgress();
   clearProgress();          // 診断が完了したので、途中データはもう不要
+  showStep(4);              // 結果の発表へ自動で進む
 }
 
 $('quiz-body').addEventListener('click', (e) => {
@@ -1080,9 +1203,8 @@ $('btn-quiz-retry').addEventListener('click', () => {
   $('reviews-card').hidden = true;
   $('paywall-zone').hidden = true;
   renderQuiz();
-  renderProgress();
   saveProgress();           // 受け直しはやり直しなので、また途中データとして保存する
-  scrollToEl($('quiz-card'));
+  showStep(3);
 });
 
 // --- 有料: 具体的な投資信託の提案 ---
@@ -2268,10 +2390,15 @@ function restoreProgress(s) {
 // --- 進捗の常時表示 ---
 // 住まいの選択=10% / 収支の診断=40% / 5問の回答=各12% で 100%
 function progressState() {
-  const answered = quizAnswers.filter((a) => a !== null).length;
+  // 診断結果の画面では、5つのステップのどこにいるかを出す
   if (currentScreen === 'screen-result') {
-    if (answered >= QUIZ.length) return { pct: 100, label: '✅ 診断完了' };
-    return { pct: 40 + answered * 12, label: `🧭 診断中(${answered + 1}/${QUIZ.length}問)` };
+    const st = RESULT_STEPS[resultStep - 1];
+    // 診断中は何問目かも添える
+    const answered = quizAnswers.filter((a) => a !== null).length;
+    const label = resultStep === 3 && answered < QUIZ.length
+      ? `③ タイプ診断(${answered + 1}/${QUIZ.length}問)`
+      : st.label;
+    return { steps: true, step: resultStep, label, text: `${resultStep}/${RESULT_STEPS.length}` };
   }
   if (!living) return { pct: 0, label: '📝 住まいを選ぶ' };
   return { pct: 10, label: '📝 収支を入力中' };
@@ -2283,10 +2410,20 @@ function renderProgress() {
   const show = currentScreen === 'screen-input' || currentScreen === 'screen-result';
   $('progress-strip').hidden = !show;
   if (!show) return;
+
   const p = progressState();
   $('progress-label').textContent = p.label;
-  $('progress-fill').style.width = p.pct + '%';
-  $('progress-pct').textContent = p.pct + '%';
+  $('progress-dots').hidden = !p.steps;
+  $('progress-track').hidden = !!p.steps;
+
+  if (p.steps) {
+    $('progress-dots').innerHTML = RESULT_STEPS
+      .map((s) => `<i class="${s.n === p.step ? 'on' : s.n < p.step ? 'done' : ''}"></i>`).join('');
+    $('progress-pct').textContent = p.text;
+  } else {
+    $('progress-fill').style.width = p.pct + '%';
+    $('progress-pct').textContent = p.pct + '%';
+  }
 }
 
 // --- 再開ダイアログ ---
