@@ -28,6 +28,17 @@ function countUp(el, to, ms) {
   requestAnimationFrame(step);
 }
 
+// 新しく出てきた内容の先頭までスクロールする。
+// 上に固定されている進捗バー/タブバーに隠れないよう、
+// 余白は CSS の scroll-margin-top 側で確保している。
+function scrollToEl(el, block) {
+  el?.scrollIntoView?.({
+    behavior: reduceMotion() ? 'auto' : 'smooth',
+    block: block || 'start',
+    inline: 'nearest',
+  });
+}
+
 // 画面切り替えのたびに登場アニメーションをやり直す
 function replayReveal(root) {
   root.querySelectorAll('.reveal').forEach((el) => {
@@ -309,6 +320,7 @@ function setLiving(next) {
   renderFields();
   renderProgress();
   saveProgress();
+  scrollToEl($('form-body'));   // 選んだ直後に出てくる入力欄まで運ぶ
 }
 
 document.querySelectorAll('.choice-btn').forEach((btn) => {
@@ -358,7 +370,7 @@ function showFormAlert(msg) {
   box.innerHTML = `<span class="ai">⚠️</span><span>${msg}</span>`;
   box.hidden = false;
   $('inc-work')?.focus();
-  box.scrollIntoView?.({ behavior: reduceMotion() ? 'auto' : 'smooth', block: 'center' });
+  scrollToEl(box, 'center');
 }
 
 function diagnose() {
@@ -865,9 +877,10 @@ function renderTypeCard(key, score, opts) {
   renderReviews();              // 課金の直前に利用者の声を出す
   renderFaq();
   $('paywall-zone').hidden = false;
-  if (scroll && !reduceMotion()) {
-    $('paywall-zone').scrollIntoView?.({ behavior: 'smooth', block: 'nearest' });
-  }
+
+  // 診断が終わった瞬間にタイプカードの先頭まで運ぶ。
+  // 結果より下(課金の壁)に飛ばすと、肝心の結果を読み飛ばしてしまう
+  if (scroll) scrollToEl($('type-card-wrap'));
 }
 
 // 「なぜこのタイプになったのか」を自分で確かめられるようにする
@@ -1007,6 +1020,7 @@ function answerQuiz(optIndex) {
       renderQuiz();
       renderProgress();
       saveProgress();       // 1問ごとに保存しておく
+      scrollToEl($('quiz-card'));   // 次の設問を必ず同じ位置に出す
     } else {
       finishQuiz();
     }
@@ -1042,7 +1056,13 @@ document.addEventListener('keydown', (e) => {
 });
 
 $('btn-quiz-back').addEventListener('click', () => {
-  if (quizIndex > 0) { quizIndex--; renderQuiz(); renderProgress(); saveProgress(); }
+  if (quizIndex > 0) {
+    quizIndex--;
+    renderQuiz();
+    renderProgress();
+    saveProgress();
+    scrollToEl($('quiz-card'));
+  }
 });
 
 $('btn-quiz-retry').addEventListener('click', () => {
@@ -1062,7 +1082,7 @@ $('btn-quiz-retry').addEventListener('click', () => {
   renderQuiz();
   renderProgress();
   saveProgress();           // 受け直しはやり直しなので、また途中データとして保存する
-  $('quiz-card').scrollIntoView?.({ behavior: reduceMotion() ? 'auto' : 'smooth', block: 'start' });
+  scrollToEl($('quiz-card'));
 });
 
 // --- 有料: 具体的な投資信託の提案 ---
@@ -1318,6 +1338,7 @@ function shareToInstagram(noteId) {
       'Instagramのストーリーズに投稿してシェアしてください。' +
       '(スマホで保存できなかった場合は、下の「結果カードを作る」から画像を長押しして保存できます)</span>';
     note.hidden = false;
+    scrollToEl(note, 'center');
   });
 }
 
@@ -1403,7 +1424,9 @@ $('btn-back-result').addEventListener('click', () => goScreen('screen-result', 2
 // ============================================================
 // 有料のタブ切り替え
 // ============================================================
-function showTab(name) {
+// fromUser: タブを押して切り替えたときだけスクロールする
+// (購入直後は goScreen が先頭まで動かすので、そこで二重に動かさない)
+function showTab(name, fromUser) {
   document.querySelectorAll('.tab').forEach((t) => {
     const on = t.dataset.tab === name;
     t.classList.toggle('selected', on);
@@ -1416,11 +1439,14 @@ function showTab(name) {
     if (on) { p.style.animation = 'none'; void p.offsetWidth; p.style.animation = ''; }
   });
   if (name === 'sim' && chart) chart.resize();   // 隠れている間にサイズが取れないため
+
+  // 前のタブで下までスクロールしていると、切り替えた先の途中が見えてしまう
+  if (fromUser) scrollToEl($('tabbar'));
 }
 
 $('tabbar').addEventListener('click', (e) => {
   const tab = e.target.closest('.tab');
-  if (tab) showTab(tab.dataset.tab);
+  if (tab) showTab(tab.dataset.tab, true);
 });
 
 // 左右の矢印キーでタブを移動できるようにする
@@ -1431,7 +1457,7 @@ $('tabbar').addEventListener('keydown', (e) => {
   const tabs = [...document.querySelectorAll('.tab')];
   const now = tabs.findIndex((t) => t.classList.contains('selected'));
   const next = tabs[(now + step + tabs.length) % tabs.length];
-  showTab(next.dataset.tab);
+  showTab(next.dataset.tab, true);
   next.focus();
 });
 
@@ -1667,6 +1693,7 @@ $('btn-toggle-table').addEventListener('click', () => {
   const wrap = $('table-wrap');
   wrap.hidden = !wrap.hidden;
   $('btn-toggle-table').textContent = wrap.hidden ? '表で見る ▾' : '表を閉じる ▴';
+  if (!wrap.hidden) scrollToEl(wrap);   // 開いた表が画面の外に出ないように
 });
 
 // 「あと◯円」比較
@@ -2138,6 +2165,7 @@ $('btn-make-card').addEventListener('click', () => {
   $('share-preview').src = $('share-canvas').toDataURL('image/png');
   $('share-frame').hidden = false;
   $('btn-download-card').hidden = false;
+  scrollToEl($('share-frame'));   // 作った画像は縦長なので、先頭から見せる
 });
 
 // 結果カードを描いて、PNGとして保存させる(Instagramシェアからも使う)
@@ -2241,7 +2269,6 @@ function restoreProgress(s) {
 // 住まいの選択=10% / 収支の診断=40% / 5問の回答=各12% で 100%
 function progressState() {
   const answered = quizAnswers.filter((a) => a !== null).length;
-  if (currentScreen === 'screen-premium') return { pct: 100, label: '💎 詳細プラン' };
   if (currentScreen === 'screen-result') {
     if (answered >= QUIZ.length) return { pct: 100, label: '✅ 診断完了' };
     return { pct: 40 + answered * 12, label: `🧭 診断中(${answered + 1}/${QUIZ.length}問)` };
@@ -2251,9 +2278,11 @@ function progressState() {
 }
 
 function renderProgress() {
-  const onIntro = currentScreen === 'screen-intro';
-  $('progress-strip').hidden = onIntro;
-  if (onIntro) return;
+  // 進捗バーを出すのは「収支入力〜診断」のあいだだけ。
+  // 有料画面ではタブバーが同じ位置に固定されるので、重ならないよう引っ込める
+  const show = currentScreen === 'screen-input' || currentScreen === 'screen-result';
+  $('progress-strip').hidden = !show;
+  if (!show) return;
   const p = progressState();
   $('progress-label').textContent = p.label;
   $('progress-fill').style.width = p.pct + '%';
