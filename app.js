@@ -501,29 +501,117 @@ const PORTFOLIOS = {
   },
 };
 
+// ============================================================
+// 診断タイプの細分化(全9タイプ)
+//
+// 「5問のスコア(=リスク許容度)」だけでなく、
+// 「投資に回せる余裕額」も掛け合わせて 3 × 3 = 9 タイプに分ける。
+//   ・投資の中身(ポートフォリオ)は base の3種で決まる
+//   ・タイプ名・性格の説明・色・アイコンは9種類それぞれに持つ
+// さらに「支出のクセ」(spendHabit)をタグとして添え、同じタイプでも
+// 自分の結果らしさが出るようにしている。
+// ============================================================
+
+// 余裕額の3段階。しきい値を変えたいときはここだけ触ればよい
+const CAPACITY = [
+  { key: 'low',  max: 5000,     label: '余裕額 少なめ', desc: '月5,000円未満' },
+  { key: 'mid',  max: 20000,    label: '余裕額 標準',   desc: '月5,000〜20,000円' },
+  { key: 'high', max: Infinity, label: '余裕額 多め',   desc: '月20,000円以上' },
+];
+const capacityKey = (surplus) => CAPACITY.find((c) => surplus < c.max).key;
+const capacityOf = (key) => CAPACITY.find((c) => c.key === key);
+
+const PERSONAS = {
+  'stable-low': {
+    name: 'コツコツ堅実タイプ', emoji: '🐢', color: '#34b58a',
+    desc: 'あなたは慎重派で、大きく増やすことよりも「減らさないこと」を大事にするタイプです。今は投資に回せる金額こそ多くありませんが、少額でも毎月続ける習慣そのものが、あなたにとって一番の武器になります。',
+  },
+  'stable-mid': {
+    name: '安全運転ドライバータイプ', emoji: '🛡️', color: '#0f9d6f',
+    desc: 'リスクは避けたいけれど、毎月きちんと積み立てられるだけの余裕は持っている、守り上手なタイプです。派手さはなくても、値動きの穏やかな組み合わせを淡々と続けることで着実に資産が育っていきます。',
+  },
+  'stable-high': {
+    name: '石橋を叩いて渡るタイプ', emoji: '🧱', color: '#0b7d51',
+    desc: '納得できるまで動かない慎重さと、しっかりした投資余力を両方持っている珍しいタイプです。焦って攻める必要はまったくありません。仕組みを理解してから始めれば、その分だけ長く続けられます。',
+  },
+  'balance-low': {
+    name: 'マイペース貯蓄家タイプ', emoji: '🌱', color: '#4a8fd0',
+    desc: '値動きを過度に怖がらない一方で、今は投資に回せる金額が限られているタイプです。無理に金額を増やすより、まずは1,000円からでも始めて「相場に慣れる時間」を先に手に入れるのが得策です。',
+  },
+  'balance-mid': {
+    name: 'バランス感覚の達人タイプ', emoji: '⚖️', color: '#2a6bab',
+    desc: 'リスクの取り方も家計の使い方も、どちらも極端に振れていない安定感のあるタイプです。投資でいちばん失敗しにくいポジションにいるので、王道の組み合わせをそのまま長く続けるのが向いています。',
+  },
+  'balance-high': {
+    name: '未来設計プランナータイプ', emoji: '📐', color: '#17456f',
+    desc: '冷静な判断力と、まとまった投資余力の両方を持っているタイプです。毎月の金額を出せるぶん、目標から逆算して計画を立てる進め方がいちばん効きます。20年後の姿から考えてみてください。',
+  },
+  'active-low': {
+    name: '夢を追う挑戦者タイプ', emoji: '🔥', color: '#ef8f2a',
+    desc: 'リターンを狙いにいく気持ちが強い一方で、今動かせる金額はまだ小さいタイプです。だからこそ、一発を狙うのではなく「金額を増やす」ことを先に考えると、あなたの積極性が正しく活きてきます。',
+  },
+  'active-mid': {
+    name: '伸びしろハンタータイプ', emoji: '🎯', color: '#d97706',
+    desc: '値動きの大きさを受け入れられて、毎月それなりの金額も出せるタイプです。成長テーマを厚めにできる条件がそろっているので、時間を味方につけるほど結果の差が大きくなっていきます。',
+  },
+  'active-high': {
+    name: '一攫千金チャレンジャータイプ', emoji: '🚀', color: '#b45309',
+    desc: '大きく増やすことを狙いにいける、攻めの条件がすべてそろったタイプです。ただし上がる時が大きいぶん下がる時も大きくなります。下落しても売らずに積み立てを続けられるかが唯一の条件です。',
+  },
+};
+
+// 支出のクセ(タイプ名には影響しないが、結果に「自分らしさ」を足すタグ)
+function spendHabit(d) {
+  if (!d || d.total === 0) return null;
+  const leak = LEAK_IDS.reduce((s, id) => s + d.spend[id], 0);
+  const avgTotal = d.items.reduce((s, it) => s + avgOf(it), 0);
+  if (leak / d.total >= 0.3) return { key: 'leak', label: 'ゆるみ支出が多め', emoji: '🥤' };
+  if (avgTotal > 0 && d.total <= avgTotal * 0.9) return { key: 'thrifty', label: '倹約家', emoji: '🪙' };
+  return { key: 'standard', label: '支出は平均的', emoji: '📊' };
+}
+
+// リスク3種 × 余裕額3段階 から、9タイプのうち1つを決める
+function personaKey(risk, surplus) { return `${risk}-${capacityKey(surplus)}`; }
+
 let selectedRisk = null;
+let selectedPersona = null;
 let paid = false;
 const CAT_VARS = ['--cat-1', '--cat-2', '--cat-3', '--cat-4'];
 
 // --- 無料: タイプ結果カード + 有料の壁 ---
 function renderTypeCard(key, score) {
   const p = PORTFOLIOS[key];
+  const surplus = state ? state.surplus : 0;
+  const capKey = capacityKey(surplus);
+  const cap = capacityOf(capKey);
+  const pk = `${key}-${capKey}`;
+  selectedPersona = pk;
+  const per = PERSONAS[pk];
+  const habit = spendHabit(state);
+
+  const tags = [
+    `<span class="tg">${p.emoji} ${p.label}</span>`,
+    `<span class="tg">💰 ${cap.label}(${cap.desc})</span>`,
+    habit ? `<span class="tg">${habit.emoji} ${habit.label}</span>` : '',
+  ].join('');
+
   $('type-card-wrap').innerHTML = `
-    <div class="type-card" style="background:linear-gradient(150deg, ${p.color} 0%, color-mix(in srgb, ${p.color} 55%, #08243a) 100%)">
+    <div class="type-card" style="background:linear-gradient(150deg, ${per.color} 0%, color-mix(in srgb, ${per.color} 55%, #08243a) 100%)">
       <div class="kicker">YOUR TYPE</div>
-      <span class="em">${p.emoji}</span>
-      <div class="nm">${p.label}</div>
-      <div class="cat">${p.catch}</div>
-      <div class="ds">${p.freeDesc}</div>
+      <span class="em">${per.emoji}</span>
+      <div class="nm">${per.name}</div>
+      <div class="tags">${tags}</div>
+      <div class="ds">${per.desc}</div>
+      <div class="ds sub">${p.freeDesc}</div>
       <div class="meters">
         <div><div class="k">値動きの大きさ</div><div class="v">${p.risk}</div></div>
         <div><div class="k">想定利回り</div><div class="v">${p.ret}</div></div>
       </div>
     </div>
-    ${score != null ? `<div class="score-line">5問の合計スコア <strong>${score}</strong> / 15 点(5〜8=安定重視型 / 9〜11=バランス型 / 12〜15=積極型)</div>` : ''}`;
+    ${score != null ? `<div class="score-line">5問の合計スコア <strong>${score}</strong> / 15点(5〜8=安定重視 / 9〜11=バランス / 12〜15=積極)× 投資に回せる余裕額 <strong>${num(surplus)}</strong>円 → 全9タイプから判定</div>` : ''}`;
   linkifyTerms($('type-card-wrap'));
 
-  $('lock-type').textContent = p.label;
+  $('lock-type').textContent = per.name;
   renderPeek(p);
   renderReviews();              // 課金の直前に利用者の声を出す
   renderFaq();
@@ -676,6 +764,7 @@ $('btn-quiz-retry').addEventListener('click', () => {
   quizAnswers.fill(null);
   quizIndex = 0;
   selectedRisk = null;
+  selectedPersona = null;
   $('type-card-wrap').innerHTML = '';
   $('faq-card').hidden = true;
   $('reviews-card').hidden = true;
@@ -1107,7 +1196,8 @@ function todoSteps() {
 function renderTodo() {
   const steps = todoSteps();
   const p = PORTFOLIOS[selectedRisk || 'balance'];
-  $('todo-sub').innerHTML = `<strong>${p.label}</strong>のあなた向けの手順です。終わったらタップしてチェックを付けてください`;
+  const perName = (PERSONAS[selectedPersona] || {}).name || p.label;
+  $('todo-sub').innerHTML = `<strong>${perName}</strong>のあなた向けの手順です。終わったらタップしてチェックを付けてください`;
 
   $('todo-list').innerHTML = steps.map((s, i) => `
     <div class="todo-item${todoDone[s.id] ? ' done' : ''}" data-todo="${s.id}" role="checkbox"
@@ -1302,8 +1392,18 @@ function renderGoal() {
 // ============================================================
 const FONT = '"Yu Gothic", "Hiragino Sans", Meiryo, system-ui, sans-serif';
 const EMOJI_FONT = '"Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif';
-const TYPE_HEX = { stable: '#0f9d6f', balance: '#2a6bab', active: '#d97706' };
 const CAT_HEX = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100'];
+
+// 長いタイプ名でもはみ出さないよう、幅に収まるまで文字サイズを下げる
+function fitFont(ctx, text, maxW, startPx, minPx) {
+  let size = startPx;
+  ctx.font = `bold ${size}px ${FONT}`;
+  while (size > minPx && ctx.measureText(text).width > maxW) {
+    size -= 2;
+    ctx.font = `bold ${size}px ${FONT}`;
+  }
+  return size;
+}
 
 function roundRect(ctx, x, y, w, h, r) {
   ctx.beginPath();
@@ -1321,7 +1421,8 @@ function drawShareCard() {
   const W = cv.width, H = cv.height, PAD = 88;
   const key = selectedRisk || 'balance';
   const p = PORTFOLIOS[key];
-  const accent = TYPE_HEX[key];
+  const per = PERSONAS[selectedPersona] || PERSONAS[`${key}-mid`];
+  const accent = per.color;
 
   // 背景
   const g = ctx.createLinearGradient(0, 0, W * 0.6, H);
@@ -1349,24 +1450,25 @@ function drawShareCard() {
   // タイプ
   ctx.textAlign = 'center';
   ctx.font = `72px ${EMOJI_FONT}`;
-  ctx.fillText(p.emoji, W / 2, 320);
+  ctx.fillText(per.emoji, W / 2, 320);
 
   ctx.fillStyle = 'rgba(255,255,255,.62)';
   ctx.font = `bold 26px ${FONT}`;
   ctx.fillText('あなたの投資タイプは', W / 2, 392);
 
+  // タイプ名は9種類あり長さがばらつくので、幅に合わせて自動で縮める
   ctx.fillStyle = '#ffffff';
-  ctx.font = `bold 88px ${FONT}`;
-  ctx.fillText(p.label, W / 2, 490);
+  fitFont(ctx, per.name, W - PAD * 2, 88, 44);
+  ctx.fillText(per.name, W / 2, 490);
 
-  // タイプのバッジ
-  const catchW = ctx.measureText(p.catch).width;
+  // ベースになるリスクタイプのバッジ
+  const badge = `${p.emoji} ${p.label}`;
   ctx.font = `bold 30px ${FONT}`;
-  const bw = Math.max(catchW, ctx.measureText(p.catch).width) + 64;
+  const bw = ctx.measureText(badge).width + 64;
   ctx.fillStyle = accent;
   roundRect(ctx, W / 2 - bw / 2, 522, bw, 60, 30); ctx.fill();
   ctx.fillStyle = '#ffffff';
-  ctx.fillText(p.catch, W / 2, 562);
+  ctx.fillText(badge, W / 2, 562);
 
   // 数字カード2枚
   const boxW = (W - PAD * 2 - 24) / 2;

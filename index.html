@@ -423,7 +423,7 @@ p.section-sub { font-size: 12.5px; color: var(--ink-3); margin: 0 0 4px; line-he
   box-shadow: var(--shadow-2);
 }
 .type-card::after {
-  content: ""; position: absolute; inset: 0;
+  content: ""; position: absolute; inset: 0; pointer-events: none;
   background: radial-gradient(220px 120px at 50% -10%, rgba(255,255,255,.30), transparent 70%);
 }
 .type-card .kicker { font-size: 11px; font-weight: 800; letter-spacing: .14em; opacity: .85; }
@@ -431,9 +431,21 @@ p.section-sub { font-size: 12.5px; color: var(--ink-3); margin: 0 0 4px; line-he
   font-size: 60px; line-height: 1.1; display: block; margin: 6px 0 2px;
   filter: drop-shadow(0 4px 10px rgba(0,0,0,.22));
 }
-.type-card .nm { font-size: 26px; font-weight: 800; letter-spacing: -.01em; }
+.type-card .nm { font-size: 26px; font-weight: 800; letter-spacing: -.01em; line-height: 1.3; }
 .type-card .cat { font-size: 14px; font-weight: 700; opacity: .95; margin-top: 4px; }
+.type-card .tags {
+  display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin-top: 10px;
+  position: relative; z-index: 1;
+}
+.type-card .tg {
+  font-size: 11px; font-weight: 700; padding: 5px 10px; border-radius: 999px;
+  background: rgba(255,255,255,.18); border: 1px solid rgba(255,255,255,.28); white-space: nowrap;
+}
 .type-card .ds { font-size: 13px; line-height: 1.75; opacity: .95; margin-top: 12px; text-align: left; }
+.type-card .ds.sub {
+  font-size: 12.5px; opacity: .84; margin-top: 10px; padding-top: 10px;
+  border-top: 1px solid rgba(255,255,255,.18);
+}
 .type-card .meters {
   display: flex; gap: 8px; margin-top: 16px;
   border-top: 1px solid rgba(255,255,255,.22); padding-top: 14px;
