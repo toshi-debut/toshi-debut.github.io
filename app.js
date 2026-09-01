@@ -12,6 +12,40 @@ const manEn = (n) => {
 };
 const cssVar = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 
+// ============ 金額入力欄(3桁カンマ区切り) ============
+// 表示は "100,000"、計算に使う値は数値の 100000 に分けて扱う
+const digitsOnly = (s) => String(s == null ? '' : s).replace(/[^\d]/g, '').slice(0, 9);
+const commas = (n) => Number(n).toLocaleString('ja-JP');
+
+// 入力欄をカンマ区切りに整形し、数値を返す。カーソル位置も保つ
+function formatMoneyInput(el) {
+  const caret = el.selectionStart;
+  const digitsBefore = caret == null ? null : digitsOnly(el.value.slice(0, caret)).length;
+
+  const raw = digitsOnly(el.value);
+  const formatted = raw === '' ? '' : commas(Number(raw));
+  if (el.value !== formatted) el.value = formatted;
+
+  if (digitsBefore != null) {
+    // 「カーソルより前にある数字の個数」を手がかりに位置を戻す
+    let pos = 0, seen = 0;
+    while (pos < formatted.length && seen < digitsBefore) {
+      if (/\d/.test(formatted[pos])) seen++;
+      pos++;
+    }
+    try { el.setSelectionRange(pos, pos); } catch (e) { /* 一部ブラウザ対策 */ }
+  }
+  return raw === '' ? 0 : Number(raw);
+}
+
+// 金額入力欄に整形と変更通知を取り付ける
+function bindMoney(el, onChange) {
+  const handle = () => onChange(formatMoneyInput(el));
+  el.addEventListener('input', handle);
+  el.addEventListener('blur', handle);
+  formatMoneyInput(el);   // 初期表示だけ整える(onChangeは呼ばない)
+}
+
 // IME変換確定のEnterで誤って送信しないためのガード
 function onEnterCommit(input, fn) {
   let composing = false;
@@ -26,55 +60,103 @@ function onEnterCommit(input, fn) {
 }
 
 // ============ 入力項目の定義 ============
-// avg = 大学生の月間平均額の目安(サンプル用の参考値)
+// living: 'alone'(一人暮らし) / 'home'(実家暮らし) / 'both'(どちらでも発生する)
+// avg = 大学生の月間平均額の目安(サンプル用の参考値)。住まいで変わる項目は
+//       { alone: ..., home: ... } の形で持つ
 const INCOME_ITEMS = [
-  { id: 'inc-work', label: 'バイト代', ph: '例: 60000' },
-  { id: 'inc-allow', label: '仕送り・お小遣い', ph: '例: 40000' },
+  { id: 'inc-work',  label: 'バイト代',         ph: '例: 60,000' },
+  { id: 'inc-allow', label: '仕送り・お小遣い', ph: '例: 40,000' },
 ];
 
 const EXPENSE_ITEMS = [
-  // 固定費
-  { id: 'rent',    group: 'fixed', label: '家賃',            avg: 53000, ph: '例: 60000', note: '実家暮らしなら 0 のままでOK' },
-  { id: 'phone',   group: 'fixed', label: '通信費(スマホ)',   avg: 6500,  ph: '例: 7000' },
-  { id: 'subs',    group: 'fixed', label: 'サブスク',         avg: 1800,  ph: '例: 2500',  note: 'Netflix・Spotify・Amazonプライム・ジムなどの合計' },
-  // 変動費
-  { id: 'food',    group: 'var',   label: '食費(自炊・学食)', avg: 26000, ph: '例: 25000' },
-  { id: 'party',   group: 'var',   label: '交遊費・飲み会',    avg: 12000, ph: '例: 15000', note: '飲み会・カラオケ・旅行の積立など' },
-  { id: 'cafe',    group: 'var',   label: 'カフェ・コンビニ',  avg: 8000,  ph: '例: 10000', note: '1回500円でも週5回で月1万円になります' },
-  { id: 'transit', group: 'var',   label: '交通費',           avg: 4500,  ph: '例: 5000' },
-  { id: 'hobby',   group: 'var',   label: '趣味・娯楽',        avg: 9000,  ph: '例: 8000',  note: '服・美容・ゲーム・推し活など' },
+  // ---- 固定費 ----
+  { id: 'rent',    group: 'fixed', living: 'alone', label: '家賃',                 avg: 53000, ph: '例: 60,000', note: '管理費・共益費も含めた金額' },
+  { id: 'utility', group: 'fixed', living: 'alone', label: '光熱費(電気・ガス・水道)', avg: 9000, ph: '例: 9,000' },
+  { id: 'home',    group: 'fixed', living: 'home',  label: '家に入れているお金',     avg: 10000, ph: '例: 10,000', note: '実家に渡している生活費。渡していなければ 0 のままでOK' },
+  { id: 'phone',   group: 'fixed', living: 'both',  label: '通信費(スマホ)',        avg: 6500,  ph: '例: 7,000' },
+  { id: 'subs',    group: 'fixed', living: 'both',  label: 'サブスク',              avg: 1800,  ph: '例: 2,500',  note: 'Netflix・Spotify・Amazonプライム・ジムなどの合計' },
+  // ---- 変動費 ----
+  { id: 'food',    group: 'var',   living: 'both',  label: '食費',                  avg: { alone: 26000, home: 13000 }, ph: '例: 25,000',
+    note: { alone: '自炊・学食・外食の合計', home: '自分で払っている分だけ(学食・外食・買い食いなど)' } },
+  { id: 'party',   group: 'var',   living: 'both',  label: '交遊費・飲み会',         avg: 12000, ph: '例: 15,000', note: '飲み会・カラオケ・旅行の積立など' },
+  { id: 'cafe',    group: 'var',   living: 'both',  label: 'カフェ・コンビニ',       avg: 8000,  ph: '例: 10,000', note: '1回500円でも週5回で月1万円になります' },
+  { id: 'transit', group: 'var',   living: 'both',  label: '交通費',                avg: { alone: 4500, home: 8000 }, ph: '例: 5,000',
+    note: { alone: '定期券・電車代など', home: '通学定期は自宅生のほうが高くなりがちです' } },
+  { id: 'daily',   group: 'var',   living: 'alone', label: '日用品・雑費',           avg: 4000,  ph: '例: 4,000',  note: '洗剤・ティッシュ・消耗品など' },
+  { id: 'hobby',   group: 'var',   living: 'both',  label: '趣味・娯楽',             avg: 9000,  ph: '例: 8,000',  note: '服・美容・ゲーム・推し活など' },
 ];
 
-// 「使っている自覚が薄い」3項目
+// 「使っている自覚が薄い」3項目(住まいに関係なく共通)
 const LEAK_IDS = ['subs', 'cafe', 'party'];
 
 const itemById = (id) => EXPENSE_ITEMS.find((it) => it.id === id);
 
+// 住まいによって値が変わるプロパティを取り出す
+const forLiving = (v, living) => (v && typeof v === 'object' ? v[living] : v);
+const avgOf = (it) => forLiving(it.avg, living) || 0;
+const noteOf = (it) => forLiving(it.note, living) || '';
+
+// その住まいで表示する支出項目
+const activeItems = () => EXPENSE_ITEMS.filter((it) => it.living === 'both' || it.living === living);
+
 // ============ フォームの生成 ============
+const LIVING_LABEL = { alone: '一人暮らし', home: '実家暮らし' };
+let living = null;          // 'alone' | 'home'
+const values = {};          // 入力値(住まいを切り替えても消えないようここに保持する)
+[...INCOME_ITEMS, ...EXPENSE_ITEMS].forEach((it) => { values[it.id] = 0; });
+
 function fieldHtml(it) {
-  const note = it.note ? `<span class="note">${it.note}</span>` : '';
+  const note = noteOf(it) ? `<span class="note">${noteOf(it)}</span>` : '';
+  const v = values[it.id] ? commas(values[it.id]) : '';
   return `
     <div class="field">
       <label for="${it.id}">${it.label}${note}</label>
       <div class="input-yen">
-        <input type="number" inputmode="numeric" id="${it.id}" placeholder="${it.ph}" min="0">
+        <input type="text" inputmode="numeric" autocomplete="off" id="${it.id}" placeholder="${it.ph}" value="${v}">
       </div>
     </div>`;
 }
 
-$('fields-income').innerHTML = INCOME_ITEMS.map(fieldHtml).join('');
-$('fields-fixed').innerHTML = EXPENSE_ITEMS.filter((i) => i.group === 'fixed').map(fieldHtml).join('');
-$('fields-var').innerHTML = EXPENSE_ITEMS.filter((i) => i.group === 'var').map(fieldHtml).join('');
+function bindField(it) {
+  const el = $(it.id);
+  bindMoney(el, (n) => { values[it.id] = n; updateSums(); });
+  onEnterCommit(el, () => diagnose());
+}
 
-const valOf = (id) => Math.max(0, Number($(id).value) || 0);
+function renderFields() {
+  const items = activeItems();
+  $('fields-income').innerHTML = INCOME_ITEMS.map(fieldHtml).join('');
+  $('fields-fixed').innerHTML = items.filter((i) => i.group === 'fixed').map(fieldHtml).join('');
+  $('fields-var').innerHTML = items.filter((i) => i.group === 'var').map(fieldHtml).join('');
+  [...INCOME_ITEMS, ...items].forEach(bindField);
+  updateSums();
+}
+
+function setLiving(next) {
+  living = next;
+  document.querySelectorAll('.choice-btn').forEach((b) => b.classList.toggle('selected', b.dataset.living === next));
+  $('form-lock').hidden = true;
+  $('form-body').hidden = false;
+  renderFields();
+}
+
+document.querySelectorAll('.choice-btn').forEach((btn) => {
+  btn.addEventListener('click', () => setLiving(btn.dataset.living));
+});
 
 function readForm() {
-  const income = INCOME_ITEMS.reduce((s, it) => s + valOf(it.id), 0);
+  const income = INCOME_ITEMS.reduce((s, it) => s + values[it.id], 0);
+  const items = activeItems();
   const spend = {};
-  EXPENSE_ITEMS.forEach((it) => { spend[it.id] = valOf(it.id); });
-  const fixed = EXPENSE_ITEMS.filter((i) => i.group === 'fixed').reduce((s, it) => s + spend[it.id], 0);
-  const variable = EXPENSE_ITEMS.filter((i) => i.group === 'var').reduce((s, it) => s + spend[it.id], 0);
-  return { income, spend, fixed, variable, total: fixed + variable, surplus: Math.max(0, income - fixed - variable) };
+  // 表示していない項目は 0 として扱い、計算ロジックはどちらの住まいでも共通にする
+  EXPENSE_ITEMS.forEach((it) => { spend[it.id] = items.includes(it) ? values[it.id] : 0; });
+  const fixed = items.filter((i) => i.group === 'fixed').reduce((s, it) => s + spend[it.id], 0);
+  const variable = items.filter((i) => i.group === 'var').reduce((s, it) => s + spend[it.id], 0);
+  return {
+    living, items, income, spend, fixed, variable,
+    total: fixed + variable,
+    surplus: Math.max(0, income - fixed - variable),
+  };
 }
 
 // 入力するそばから各セクションの合計を出す(入れながら気づけるように)
@@ -84,11 +166,6 @@ function updateSums() {
   $('sum-fixed').textContent = '¥' + num(d.fixed);
   $('sum-var').textContent = '¥' + num(d.variable);
 }
-[...INCOME_ITEMS, ...EXPENSE_ITEMS].forEach((it) => {
-  $(it.id).addEventListener('input', updateSums);
-  onEnterCommit($(it.id), () => diagnose());
-});
-updateSums();
 
 // ============ STEP 2: 無料診断 ============
 let state = null; // 直近の診断結果
@@ -118,7 +195,7 @@ function diagnose() {
   $('screen-result').hidden = false;
   $('screen-premium').hidden = true;
   $('head-title').textContent = '診断結果';
-  $('head-sub').textContent = '数字を見て、気づいたところから変えていきましょう。';
+  $('head-sub').textContent = `${LIVING_LABEL[d.living]}の場合の結果です。`;
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -162,14 +239,14 @@ function renderLeakInsight(d) {
 
 // 平均より多い項目トップ2
 function renderTopOverInsight(d) {
-  const overs = EXPENSE_ITEMS
-    .filter((it) => d.spend[it.id] > 0 && d.spend[it.id] > it.avg)
-    .map((it) => ({ it, diff: d.spend[it.id] - it.avg }))
+  const overs = d.items
+    .filter((it) => d.spend[it.id] > 0 && d.spend[it.id] > avgOf(it))
+    .map((it) => ({ it, diff: d.spend[it.id] - avgOf(it) }))
     .sort((a, b) => b.diff - a.diff)
     .slice(0, 2);
 
   if (overs.length === 0) {
-    const entered = EXPENSE_ITEMS.some((it) => d.spend[it.id] > 0);
+    const entered = d.items.some((it) => d.spend[it.id] > 0);
     $('insight-top').innerHTML = entered ? `
       <div class="insight">
         <div class="h">支出は同世代の平均以下です</div>
@@ -197,12 +274,13 @@ function verdict(mine, avg) {
 }
 
 function renderComparison(d) {
-  const rows = EXPENSE_ITEMS.map((it) => {
+  const rows = d.items.map((it) => {
     const mine = d.spend[it.id];
-    const scale = Math.max(mine, it.avg) * 1.25 || 1;
+    const avg = avgOf(it);
+    const scale = Math.max(mine, avg) * 1.25 || 1;
     const mineW = Math.min(100, (mine / scale) * 100);
-    const avgL = Math.min(100, (it.avg / scale) * 100);
-    const v = mine > 0 ? verdict(mine, it.avg) : null;
+    const avgL = Math.min(100, (avg / scale) * 100);
+    const v = mine > 0 && avg > 0 ? verdict(mine, avg) : null;
     const pill = v ? `<span class="pill ${v.cls}"><span class="ic">${v.ic}</span>${v.text}</span>` : '';
     return `
       <div class="cmp-row">
@@ -213,12 +291,12 @@ function renderComparison(d) {
         </div>
         <div class="cmp-foot">
           <span class="mine">あなた ${num(mine)}円</span>
-          <span>平均 ${num(it.avg)}円</span>
+          <span>平均 ${num(avg)}円</span>
         </div>
       </div>`;
   }).join('');
 
-  const avgTotal = EXPENSE_ITEMS.reduce((s, it) => s + it.avg, 0);
+  const avgTotal = d.items.reduce((s, it) => s + avgOf(it), 0);
   const v = verdict(d.total, avgTotal);
   const summary = `
     <div class="cmp-row" style="border-top:1px solid var(--grid); padding-top:14px;">
@@ -233,6 +311,8 @@ function renderComparison(d) {
     </div>`;
 
   $('cmp-list').innerHTML = rows + summary;
+  $('cmp-sub').textContent =
+    `濃いバーがあなた、縦線が${LIVING_LABEL[d.living]}の大学生の平均的な金額(目安)です`;
 }
 
 $('btn-diagnose').addEventListener('click', diagnose);
@@ -264,7 +344,7 @@ $('btn-back-result').addEventListener('click', () => {
   $('screen-premium').hidden = true;
   $('screen-result').hidden = false;
   $('head-title').textContent = '診断結果';
-  $('head-sub').textContent = '数字を見て、気づいたところから変えていきましょう。';
+  $('head-sub').textContent = `${LIVING_LABEL[living]}の場合の結果です。`;
   window.scrollTo({ top: 0, behavior: 'smooth' });
 });
 
@@ -286,12 +366,18 @@ function fvSeries(monthly, annualRate, years) {
 let monthly = 10000;
 let years = 20;
 let baseRate = 0.05;
+let compareMode = false;   // true のときだけ3%/5%/7%を並べて表示する
+
+// skipInput: 入力欄そのものを打っている最中は、値を書き戻さない(カーソルが飛ぶため)
+function syncMonthlyUI(skipInput) {
+  $('sim-monthly-label').textContent = '¥' + num(monthly);
+  $('sim-monthly-range').value = Math.min(monthly, Number($('sim-monthly-range').max));
+  if (!skipInput) $('sim-monthly').value = monthly ? commas(monthly) : '';
+}
 
 function setMonthly(v) {
   monthly = Math.max(0, Math.round(v));
-  $('sim-monthly').value = monthly;
-  $('sim-monthly-range').value = Math.min(monthly, Number($('sim-monthly-range').max));
-  $('sim-monthly-label').textContent = '¥' + num(monthly);
+  syncMonthlyUI(false);
 }
 
 function refreshSim() {
@@ -306,8 +392,8 @@ function refreshSim() {
 const monthlyRange = $('sim-monthly-range');
 const monthlyInput = $('sim-monthly');
 monthlyRange.addEventListener('input', () => { setMonthly(Number(monthlyRange.value)); refreshSim(); });
-monthlyInput.addEventListener('input', () => { setMonthly(Number(monthlyInput.value)); refreshSim(); });
-onEnterCommit(monthlyInput, () => { setMonthly(Number(monthlyInput.value)); refreshSim(); });
+bindMoney(monthlyInput, (n) => { monthly = n; syncMonthlyUI(true); refreshSim(); });
+onEnterCommit(monthlyInput, () => refreshSim());
 
 const yearsRange = $('sim-years-range');
 yearsRange.addEventListener('input', () => { years = Number(yearsRange.value); refreshSim(); });
@@ -321,6 +407,11 @@ document.querySelectorAll('.rate-tab').forEach((tab) => {
   });
 });
 
+$('cmp-mode').addEventListener('change', () => {
+  compareMode = $('cmp-mode').checked;
+  refreshSim();
+});
+
 let chart = null;
 
 function buildChart() {
@@ -330,10 +421,13 @@ function buildChart() {
   const colors = [cssVar('--series-3'), cssVar('--series-5'), cssVar('--series-7')];
   const baseIdx = RATES.findIndex((r) => Math.abs(r - baseRate) < 1e-9);
 
+  // 既定は選択中の利回り1本だけ。比較モードのときだけ3本すべて描く
+  const shownIdx = compareMode ? RATES.map((_, i) => i) : [baseIdx];
+
   const datasets = [
     { label: '元本', data: principal, borderColor: cssVar('--series-principal'), borderDash: [4, 3], borderWidth: 2, pointRadius: 0, tension: 0 },
-    ...RATES.map((r, i) => ({
-      label: `年${Math.round(r * 100)}%`,
+    ...shownIdx.map((i) => ({
+      label: `年${Math.round(RATES[i] * 100)}%`,
       data: s[i],
       borderColor: colors[i],
       borderWidth: i === baseIdx ? 3.5 : 2,
@@ -382,7 +476,7 @@ function buildChart() {
   // 凡例に終了時点の金額を直接表示(色だけに意味を持たせない)
   $('chart-legend').innerHTML = [
     { key: '元本', color: cssVar('--series-principal'), dashed: true, val: principal[years] },
-    ...RATES.map((r, i) => ({ key: `年${Math.round(r * 100)}%`, color: colors[i], val: s[i][years] })),
+    ...shownIdx.map((i) => ({ key: `年${Math.round(RATES[i] * 100)}%`, color: colors[i], val: s[i][years] })),
   ].map((x) => `
     <div class="item">
       <span class="swatch${x.dashed ? ' dashed' : ''}" style="${x.dashed ? '' : `background:${x.color}`}"></span>
@@ -395,27 +489,26 @@ function buildChart() {
   $('fv-gain').textContent = manEn(main - prin);
   $('fv-principal').textContent = manEn(prin);
 
-  renderTable(principal, s);
+  renderTable(principal, s, shownIdx);
 }
 
-function renderTable(principal, s) {
+function renderTable(principal, s, shownIdx) {
   const step = Math.max(1, Math.round(years / 5));
   const rows = [];
   for (let y = 0; y <= years; y += step) rows.push(y);
   if (rows[rows.length - 1] !== years) rows.push(years);
 
+  const ths = shownIdx.map((i) => `<th>年${Math.round(RATES[i] * 100)}%</th>`).join('');
   const trs = rows.map((y) => `
     <tr>
       <td>${y}年後</td>
       <td>${manEn(principal[y])}</td>
-      <td>${manEn(s[0][y])}</td>
-      <td>${manEn(s[1][y])}</td>
-      <td>${manEn(s[2][y])}</td>
+      ${shownIdx.map((i) => `<td>${manEn(s[i][y])}</td>`).join('')}
     </tr>`).join('');
 
   $('table-wrap').innerHTML = `
     <table class="data-table">
-      <thead><tr><th>経過</th><th>元本</th><th>年3%</th><th>年5%</th><th>年7%</th></tr></thead>
+      <thead><tr><th>経過</th><th>元本</th>${ths}</tr></thead>
       <tbody>${trs}</tbody>
     </table>`;
 }
@@ -591,7 +684,10 @@ function drawShareCard() {
   drawMiniChart(ctx, cx + 40, cy + 60, cw - 80, ch - 110);
   ctx.fillStyle = '#52514e';
   ctx.font = `bold 26px ${FONT}`;
-  ctx.fillText('資産の推移(年3% / 5% / 7%)', cx + 40, cy + 42);
+  const chartTitle = compareMode
+    ? '資産の推移(年3% / 5% / 7%)'
+    : `資産の推移(年${Math.round(baseRate * 100)}%)`;
+  ctx.fillText(chartTitle, cx + 40, cy + 42);
 
   // ポートフォリオ
   const p = PORTFOLIOS[selectedRisk];
@@ -637,10 +733,13 @@ function drawShareCard() {
 
 // カード内の小さな折れ線グラフ(Chart.jsは使わず自前で描く)
 function drawMiniChart(ctx, x, y, w, h) {
-  const colors = ['#86b6ef', '#2a78d6', '#104281'];
-  const series = RATES.map((r) => fvSeries(monthly, r, years));
+  const allColors = ['#86b6ef', '#2a78d6', '#104281'];
+  const baseIdx = RATES.findIndex((r) => Math.abs(r - baseRate) < 1e-9);
+  const shownIdx = compareMode ? RATES.map((_, i) => i) : [baseIdx];
+  const colors = shownIdx.map((i) => allColors[i]);
+  const series = shownIdx.map((i) => fvSeries(monthly, RATES[i], years));
   const principal = Array.from({ length: years + 1 }, (_, i) => monthly * i * 12);
-  const max = Math.max(1, series[2][years]);
+  const max = Math.max(1, ...series.map((s) => s[years]));
   const px = (i) => x + (w * i) / years;
   const py = (v) => y + h - (h * v) / max;
 

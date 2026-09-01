@@ -266,6 +266,29 @@
     display: inline-block; background: var(--brand-mint); color: #fff;
     font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 999px; margin-bottom: 10px;
   }
+  /* 居住形態の選択 */
+  .choice-options { display: flex; gap: 10px; margin-top: 12px; }
+  .choice-btn {
+    flex: 1; padding: 16px 8px; border-radius: 14px; border: 1.5px solid var(--grid);
+    background: var(--surface-1); color: var(--text-primary);
+    font-size: 15px; font-weight: 800; text-align: center; line-height: 1.4;
+    transition: border-color .15s, background .15s;
+  }
+  .choice-btn .sub { display: block; font-size: 11.5px; font-weight: 400; color: var(--text-muted); margin-top: 3px; }
+  .choice-btn.selected { border-color: var(--brand-navy); background: var(--brand-mint-soft); color: var(--brand-navy); }
+  .choice-btn.selected .sub { color: var(--brand-navy); }
+  .form-lock {
+    text-align: center; font-size: 13px; color: var(--text-muted);
+    padding: 26px 10px; border: 1.5px dashed var(--grid); border-radius: 14px; margin-top: 20px;
+  }
+
+  /* 比較表示のトグル */
+  .toggle-row {
+    display: flex; align-items: center; gap: 8px; margin-top: 10px;
+    font-size: 12.5px; color: var(--text-secondary);
+  }
+  .toggle-row input { accent-color: var(--brand-navy); width: 16px; height: 16px; }
+
   .risk-options { display: flex; gap: 8px; margin-top: 10px; }
   .risk-btn {
     flex: 1; padding: 11px 6px; border-radius: 12px; border: 1.5px solid var(--grid);
@@ -360,29 +383,43 @@
 
   <!-- ===== STEP 1: 入力フォーム ===== -->
   <div class="card" id="screen-input">
-    <div class="seg-head">
-      <span class="t">収入</span><span class="s">月あたり</span>
-      <span class="sum" id="sum-income">¥0</span>
+    <div class="seg-head" style="margin-top:0;">
+      <span class="t">住まい</span><span class="s">かかる費用が変わります</span>
     </div>
-    <div id="fields-income"></div>
-
-    <div class="seg-head">
-      <span class="t">固定費</span><span class="s">毎月ほぼ同じ額</span>
-      <span class="sum" id="sum-fixed">¥0</span>
+    <div class="choice-options">
+      <button class="choice-btn" data-living="alone">一人暮らし<span class="sub">賃貸・下宿</span></button>
+      <button class="choice-btn" data-living="home">実家暮らし<span class="sub">自宅から通学</span></button>
     </div>
-    <div id="fields-fixed"></div>
 
-    <div class="seg-head">
-      <span class="t">変動費</span><span class="s">使い方で増減する</span>
-      <span class="sum" id="sum-var">¥0</span>
+    <div class="form-lock" id="form-lock">
+      まず住まいを選んでください。<br>選んだ形態に合わせて、入力する支出の項目が変わります。
     </div>
-    <div id="fields-var"></div>
 
-    <div style="margin-top:22px;">
-      <button class="btn-primary" id="btn-diagnose">診断する</button>
-      <p style="font-size:11.5px; color:var(--text-muted); text-align:center; margin:10px 0 0;">
-        わからない項目は空欄(0円)のままでOK。あとから変更できます。
-      </p>
+    <div id="form-body" hidden>
+      <div class="seg-head">
+        <span class="t">収入</span><span class="s">月あたり</span>
+        <span class="sum" id="sum-income">¥0</span>
+      </div>
+      <div id="fields-income"></div>
+
+      <div class="seg-head">
+        <span class="t">固定費</span><span class="s">毎月ほぼ同じ額</span>
+        <span class="sum" id="sum-fixed">¥0</span>
+      </div>
+      <div id="fields-fixed"></div>
+
+      <div class="seg-head">
+        <span class="t">変動費</span><span class="s">使い方で増減する</span>
+        <span class="sum" id="sum-var">¥0</span>
+      </div>
+      <div id="fields-var"></div>
+
+      <div style="margin-top:22px;">
+        <button class="btn-primary" id="btn-diagnose">診断する</button>
+        <p style="font-size:11.5px; color:var(--text-muted); text-align:center; margin:10px 0 0;">
+          わからない項目は空欄(0円)のままでOK。あとから変更できます。
+        </p>
+      </div>
     </div>
   </div>
 
@@ -413,12 +450,12 @@
     <!-- 同世代比較 -->
     <div class="card">
       <h2 class="section-title">同世代の平均と比べると</h2>
-      <p class="section-sub">
+      <p class="section-sub" id="cmp-sub">
         濃いバーがあなた、縦線が大学生の平均的な金額(目安)です
       </p>
       <div id="cmp-list" style="margin-top:14px;"></div>
       <p style="font-size:11px; color:var(--text-muted); margin:4px 0 0;">
-        ※平均額はサンプル用の参考値です。家賃は一人暮らし・実家暮らしで大きく変わります。
+        ※平均額はサンプル用の参考値です。実際の金額は地域や生活スタイルで大きく変わります。
       </p>
     </div>
 
@@ -467,7 +504,7 @@
         <input type="range" id="sim-monthly-range" min="0" max="100000" step="1000" value="10000">
         <div class="ctrl-scale"><span>0円</span><span>10万円</span></div>
         <div class="input-yen" style="margin-top:8px;">
-          <input type="number" inputmode="numeric" id="sim-monthly" min="0" step="1000" value="10000">
+          <input type="text" inputmode="numeric" autocomplete="off" id="sim-monthly" value="10,000">
         </div>
       </div>
 
@@ -489,6 +526,10 @@
           <button class="rate-tab" data-rate="3">年3%<br><span style="font-weight:400;font-size:11px;">堅め</span></button>
           <button class="rate-tab selected" data-rate="5">年5%<br><span style="font-weight:400;font-size:11px;">標準</span></button>
           <button class="rate-tab" data-rate="7">年7%<br><span style="font-weight:400;font-size:11px;">強気</span></button>
+        </div>
+        <div class="toggle-row">
+          <input type="checkbox" id="cmp-mode">
+          <label for="cmp-mode">3%・5%・7%を並べて比較する</label>
         </div>
       </div>
 
