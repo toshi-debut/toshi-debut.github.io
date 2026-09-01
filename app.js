@@ -620,38 +620,47 @@ const capacityOf = (key) => CAPACITY.find((c) => c.key === key);
 const PERSONAS = {
   'stable-low': {
     name: 'コツコツ堅実タイプ', emoji: '🐢', color: '#34b58a',
+    share: '少額でも毎月続ける習慣がいちばんの武器',
     desc: 'あなたは慎重派で、大きく増やすことよりも「減らさないこと」を大事にするタイプです。今は投資に回せる金額こそ多くありませんが、少額でも毎月続ける習慣そのものが、あなたにとって一番の武器になります。',
   },
   'stable-mid': {
     name: '安全運転ドライバータイプ', emoji: '🛡️', color: '#0f9d6f',
+    share: '値動きの穏やかな組み合わせを淡々と続けるのが向いている',
     desc: 'リスクは避けたいけれど、毎月きちんと積み立てられるだけの余裕は持っている、守り上手なタイプです。派手さはなくても、値動きの穏やかな組み合わせを淡々と続けることで着実に資産が育っていきます。',
   },
   'stable-high': {
     name: '石橋を叩いて渡るタイプ', emoji: '🧱', color: '#0b7d51',
+    share: '慎重さと投資余力を両方持っている珍しいタイプ',
     desc: '納得できるまで動かない慎重さと、しっかりした投資余力を両方持っている珍しいタイプです。焦って攻める必要はまったくありません。仕組みを理解してから始めれば、その分だけ長く続けられます。',
   },
   'balance-low': {
     name: 'マイペース貯蓄家タイプ', emoji: '🌱', color: '#4a8fd0',
+    share: 'まずは相場に慣れる時間を先に手に入れるのが得策',
     desc: '値動きを過度に怖がらない一方で、今は投資に回せる金額が限られているタイプです。無理に金額を増やすより、まずは1,000円からでも始めて「相場に慣れる時間」を先に手に入れるのが得策です。',
   },
   'balance-mid': {
     name: 'バランス感覚の達人タイプ', emoji: '⚖️', color: '#2a6bab',
+    share: '投資でいちばん失敗しにくいポジションにいる',
     desc: 'リスクの取り方も家計の使い方も、どちらも極端に振れていない安定感のあるタイプです。投資でいちばん失敗しにくいポジションにいるので、王道の組み合わせをそのまま長く続けるのが向いています。',
   },
   'balance-high': {
     name: '未来設計プランナータイプ', emoji: '📐', color: '#17456f',
+    share: '目標から逆算して計画を立てる進め方が効くタイプ',
     desc: '冷静な判断力と、まとまった投資余力の両方を持っているタイプです。毎月の金額を出せるぶん、目標から逆算して計画を立てる進め方がいちばん効きます。20年後の姿から考えてみてください。',
   },
   'active-low': {
     name: '夢を追う挑戦者タイプ', emoji: '🔥', color: '#ef8f2a',
+    share: '一発を狙うより「金額を増やす」ことを先に考えたい',
     desc: 'リターンを狙いにいく気持ちが強い一方で、今動かせる金額はまだ小さいタイプです。だからこそ、一発を狙うのではなく「金額を増やす」ことを先に考えると、あなたの積極性が正しく活きてきます。',
   },
   'active-mid': {
     name: '伸びしろハンタータイプ', emoji: '🎯', color: '#d97706',
+    share: '成長テーマを厚めにできる条件がそろっている',
     desc: '値動きの大きさを受け入れられて、毎月それなりの金額も出せるタイプです。成長テーマを厚めにできる条件がそろっているので、時間を味方につけるほど結果の差が大きくなっていきます。',
   },
   'active-high': {
     name: '一攫千金チャレンジャータイプ', emoji: '🚀', color: '#b45309',
+    share: '攻めの条件がそろった、下落に耐えられるかが勝負',
     desc: '大きく増やすことを狙いにいける、攻めの条件がすべてそろったタイプです。ただし上がる時が大きいぶん下がる時も大きくなります。下落しても売らずに積み立てを続けられるかが唯一の条件です。',
   },
 };
@@ -709,6 +718,7 @@ function renderTypeCard(key, score, opts) {
   linkifyTerms($('type-card-wrap'));
 
   renderAnswers();
+  renderSocial();               // タイプが決まってからでないと文面が作れない
   $('lock-type').textContent = per.name;
   renderPeek(p);
   renderReviews();              // 課金の直前に利用者の声を出す
@@ -901,6 +911,9 @@ $('btn-quiz-retry').addEventListener('click', () => {
   selectedPersona = null;
   $('type-card-wrap').innerHTML = '';
   $('answers-wrap').innerHTML = '';
+  $('social-card').hidden = true;
+  $('social-note-free').hidden = true;
+  $('social-note-paid').hidden = true;
   $('faq-card').hidden = true;
   $('reviews-card').hidden = true;
   $('paywall-zone').hidden = true;
@@ -1004,6 +1017,86 @@ function renderFaq() {
 }
 
 // ============================================================
+// SNSシェア(LINE / Instagram / X)
+//
+// 公開したら SHARE_SITE.url に公開URLを入れる。空のままなら、
+// http(s) で開いているときだけ今のURLを使う。
+// file:// で開いている場合は端末のパス(ユーザー名を含む)が漏れるので使わない。
+// ============================================================
+const SHARE_SITE = {
+  url: '',                       // 例: 'https://toshi-debut.vercel.app'
+  hashtag: '投資デビュー診断',
+};
+
+function shareUrl() {
+  if (SHARE_SITE.url) return SHARE_SITE.url;
+  if (location.protocol === 'http:' || location.protocol === 'https:') {
+    return location.origin + location.pathname;
+  }
+  return '';                     // ローカルのファイルを直接開いているとき
+}
+
+// 受け取った人が「自分もやってみたい」と思える文面にする
+function shareText() {
+  const per = PERSONAS[selectedPersona];
+  if (!per) return `大学生のための投資デビュー診断。3分で自分の投資タイプがわかります #${SHARE_SITE.hashtag}`;
+  return `私の投資タイプは「${per.name}」でした${per.emoji}\n${per.share}\nあなたも3分で診断してみて #${SHARE_SITE.hashtag}`;
+}
+
+const SOCIAL_ICONS = {
+  // LINE: 吹き出し / X: Xのロゴ / Instagram: カメラ
+  line: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3C6.5 3 2 6.62 2 11.07c0 3.98 3.57 7.31 8.39 7.94.33.07.77.22.88.5.1.25.07.64.03.89l-.14.86c-.04.25-.2.99.87.54 1.07-.45 5.75-3.39 7.85-5.8C21.28 14.4 22 12.83 22 11.07 22 6.62 17.5 3 12 3zM8.2 13.6H6.11a.4.4 0 0 1-.4-.4V9.02a.4.4 0 0 1 .81 0v3.78H8.2a.4.4 0 0 1 0 .8zm1.6-.4a.4.4 0 0 1-.81 0V9.02a.4.4 0 0 1 .81 0v4.18zm4.9 0a.4.4 0 0 1-.72.24l-2.14-2.92v2.68a.4.4 0 0 1-.81 0V9.02a.4.4 0 0 1 .72-.24l2.14 2.92V9.02a.4.4 0 0 1 .81 0v4.18zm3.2-2.49a.4.4 0 0 1 0 .8h-1.28v.89h1.28a.4.4 0 0 1 0 .8H16.2a.4.4 0 0 1-.4-.4V9.02a.4.4 0 0 1 .4-.4h1.7a.4.4 0 0 1 0 .8h-1.29v.89h1.29z"/></svg>',
+  x:    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.9 1.15h3.68l-8.04 9.19L24 22.85h-7.41l-5.8-7.58-6.64 7.58H.46l8.6-9.83L0 1.15h7.59l5.24 6.93 6.07-6.93zm-1.29 19.5h2.04L6.49 3.24H4.3l13.31 17.41z"/></svg>',
+  ig:   '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.16c3.2 0 3.58.01 4.85.07 1.17.05 1.8.25 2.23.41.56.22.96.48 1.38.9.42.42.68.82.9 1.38.16.42.36 1.06.41 2.23.06 1.27.07 1.65.07 4.85s-.01 3.58-.07 4.85c-.05 1.17-.25 1.8-.41 2.23-.22.56-.48.96-.9 1.38-.42.42-.82.68-1.38.9-.42.16-1.06.36-2.23.41-1.27.06-1.65.07-4.85.07s-3.58-.01-4.85-.07c-1.17-.05-1.8-.25-2.23-.41a3.8 3.8 0 0 1-1.38-.9 3.8 3.8 0 0 1-.9-1.38c-.16-.42-.36-1.06-.41-2.23-.06-1.27-.07-1.65-.07-4.85s.01-3.58.07-4.85c.05-1.17.25-1.8.41-2.23.22-.56.48-.96.9-1.38.42-.42.82-.68 1.38-.9.42-.16 1.06-.36 2.23-.41 1.27-.06 1.65-.07 4.85-.07zm0 1.98c-3.15 0-3.5.01-4.74.07-1.14.05-1.76.24-2.18.4-.55.21-.94.47-1.35.88-.41.41-.67.8-.88 1.35-.16.42-.35 1.04-.4 2.18-.06 1.24-.07 1.59-.07 4.74s.01 3.5.07 4.74c.05 1.14.24 1.76.4 2.18.21.55.47.94.88 1.35.41.41.8.67 1.35.88.42.16 1.04.35 2.18.4 1.24.06 1.59.07 4.74.07s3.5-.01 4.74-.07c1.14-.05 1.76-.24 2.18-.4.55-.21.94-.47 1.35-.88.41-.41.67-.8.88-1.35.16-.42.35-1.04.4-2.18.06-1.24.07-1.59.07-4.74s-.01-3.5-.07-4.74c-.05-1.14-.24-1.76-.4-2.18a3.6 3.6 0 0 0-.88-1.35 3.6 3.6 0 0 0-1.35-.88c-.42-.16-1.04-.35-2.18-.4-1.24-.06-1.59-.07-4.74-.07zm0 3.37a5.49 5.49 0 1 1 0 10.98 5.49 5.49 0 0 1 0-10.98zm0 9.05a3.56 3.56 0 1 0 0-7.12 3.56 3.56 0 0 0 0 7.12zm6.99-9.27a1.28 1.28 0 1 1-2.57 0 1.28 1.28 0 0 1 2.57 0z"/></svg>',
+};
+
+function socialHtml() {
+  const url = shareUrl();
+  const text = shareText();
+  // LINE: URLがあるときは公式の共有プラグイン、無いときはテキストだけ送るスキームに切り替える
+  const lineHref = url
+    ? `https://social-plugins.line.me/lineit/share?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`
+    : `https://line.me/R/msg/text/?${encodeURIComponent(text)}`;
+  const xHref = 'https://twitter.com/intent/tweet?text=' + encodeURIComponent(text) +
+    (url ? '&url=' + encodeURIComponent(url) : '');
+
+  return `
+    <a class="social-btn line" id="btn-share-line" href="${lineHref}" target="_blank" rel="noopener noreferrer">
+      ${SOCIAL_ICONS.line}<span>LINE</span>
+    </a>
+    <a class="social-btn x" id="btn-share-x" href="${xHref}" target="_blank" rel="noopener noreferrer">
+      ${SOCIAL_ICONS.x}<span>X</span>
+    </a>
+    <button class="social-btn ig" data-share="ig" type="button">
+      ${SOCIAL_ICONS.ig}<span>Instagram</span>
+    </button>`;
+}
+
+function renderSocial() {
+  const html = socialHtml();
+  ['social-free', 'social-paid'].forEach((id) => { if ($(id)) $(id).innerHTML = html; });
+  $('social-card').hidden = false;
+}
+
+// Instagram は外から直接投稿できる共有URLが用意されていないので、
+// 画像を保存してもらってストーリーズに貼る流れを案内する
+function shareToInstagram(noteId) {
+  const note = $(noteId);
+  downloadShareCard(() => {
+    note.innerHTML = '<span>📸</span><span><strong>診断結果の画像を保存しました。</strong>' +
+      'Instagramのストーリーズに投稿してシェアしてください。' +
+      '(スマホで保存できなかった場合は、下の「結果カードを作る」から画像を長押しして保存できます)</span>';
+    note.hidden = false;
+  });
+}
+
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-share="ig"]');
+  if (!btn) return;
+  shareToInstagram(btn.closest('#social-paid') ? 'social-note-paid' : 'social-note-free');
+});
+
+// ============================================================
 // 利用者の声
 // 実際の声に差し替えるときは、この配列を書き換えるだけでよい
 // ============================================================
@@ -1067,6 +1160,7 @@ document.addEventListener('keydown', (e) => {
 $('btn-fake-pay').addEventListener('click', () => {
   modal.hidden = true;
   paid = true;
+  renderSocial();               // 有料側のシェアボタンも用意する
   renderPortfolio(selectedRisk || 'balance');
   refreshSim();
   goScreen('screen-premium', 3);
@@ -1698,7 +1792,21 @@ function drawShareCard() {
   ctx.fillText(`資産の推移(年${Math.round(baseRate * 100)}%で試算)`, cx + 40, cy + 48);
   drawMiniChart(ctx, cx + 40, cy + 86, cw - 80, ch - 176);
 
-  // ポートフォリオ
+  // ポートフォリオ(有料の中身なので、購入前はここを出さない)
+  if (!paid) {
+    ctx.textAlign = 'center';
+    ctx.fillStyle = 'rgba(255,255,255,.72)';
+    ctx.font = `30px ${FONT}`;
+    ctx.fillText('あなたに合う投資プランは', W / 2, 1470);
+    ctx.fillText('アプリの中で確認できます', W / 2, 1520);
+    ctx.font = `bold 26px ${FONT}`;
+    ctx.fillStyle = accent;
+    ctx.fillText('全9タイプ / 診断は無料', W / 2, 1600);
+    ctx.textAlign = 'left';
+    drawShareFooter(ctx, W, PAD);
+    return;
+  }
+
   ctx.fillStyle = 'rgba(255,255,255,.66)';
   ctx.font = `26px ${FONT}`;
   ctx.fillText('おすすめの組み合わせ', PAD, 1418);
@@ -1727,13 +1835,16 @@ function drawShareCard() {
     ctx.fillText(`${it.name} ${it.pct}%`, lx + 34, ly);
   });
 
-  // フッター
+  drawShareFooter(ctx, W, PAD);
+}
+
+function drawShareFooter(ctx, W, PAD) {
   ctx.textAlign = 'center';
   ctx.strokeStyle = 'rgba(255,255,255,.18)'; ctx.lineWidth = 2;
   ctx.beginPath(); ctx.moveTo(PAD, 1728); ctx.lineTo(W - PAD, 1728); ctx.stroke();
   ctx.fillStyle = '#5fd7a8';
   ctx.font = `bold 34px ${FONT}`;
-  ctx.fillText('#投資デビュー診断', W / 2, 1794);
+  ctx.fillText(`#${SHARE_SITE.hashtag}`, W / 2, 1794);
   ctx.fillStyle = 'rgba(255,255,255,.42)';
   ctx.font = `20px ${FONT}`;
   ctx.fillText('※簡易試算です。将来の運用成果を保証するものではありません。', W / 2, 1842);
@@ -1798,7 +1909,9 @@ $('btn-make-card').addEventListener('click', () => {
   $('btn-download-card').hidden = false;
 });
 
-$('btn-download-card').addEventListener('click', () => {
+// 結果カードを描いて、PNGとして保存させる(Instagramシェアからも使う)
+function downloadShareCard(onDone) {
+  drawShareCard();
   $('share-canvas').toBlob((blob) => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -1806,8 +1919,11 @@ $('btn-download-card').addEventListener('click', () => {
     a.download = '投資デビュー診断.png';
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
+    onDone?.();
   }, 'image/png');
-});
+}
+
+$('btn-download-card').addEventListener('click', () => downloadShareCard());
 
 // ============================================================
 // 途中データの自動保存と再開(離脱防止)
