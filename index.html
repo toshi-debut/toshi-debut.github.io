@@ -5,690 +5,990 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>投資デビュー診断</title>
 <style>
-  /* 白ベースの明るい配色で固定する(端末のダークモード設定には追従しない) */
-  :root {
-    color-scheme: light;
-    --surface-1: #f7fafc;   /* 入力欄・淡いブロックの下地 */
-    --page: #eef3f7;        /* ページ全体の背景 */
-    --card: #ffffff;        /* カード */
-    --text-primary: #0f1720;
-    --text-secondary: #4a5a68;
-    --text-muted: #7d8b98;
-    --grid: #dde5ec;
-    --border: rgba(15,23,32,0.10);
+/* =========================================================
+   デザイントークン(白ベース固定。OSのダークモードには追従しない)
+   ========================================================= */
+:root {
+  color-scheme: light;
 
-    --brand-navy: #123a5e;
-    --brand-navy-deep: #0c2a45;
-    --brand-mint: #16a672;
-    --brand-mint-soft: #e4f5ee;
+  /* 面 */
+  --page: #eff4f9;
+  --page-2: #e5edf5;
+  --card: #ffffff;
+  --surface: #f5f9fc;
 
-    /* 利回り3水準 = 大きさの順序なので単一色相の濃淡(sequential) */
-    --series-3: #86b6ef;
-    --series-5: #2a78d6;
-    --series-7: #104281;
-    --series-principal: #8b98a4;
+  /* 文字 */
+  --ink: #0c1c2c;
+  --ink-2: #47596b;
+  --ink-3: #7b8b9c;
 
-    /* ポートフォリオのテーマ = 種類の違い(categorical スロット1〜4) */
-    --cat-1: #2a78d6;
-    --cat-2: #eb6834;
-    --cat-3: #1baf7a;
-    --cat-4: #eda100;
+  /* 線 */
+  --line: #dce6ef;
+  --border: rgba(12,28,44,0.10);
 
-    /* 判定バッジ(状態色。必ず文字ラベルとセットで使う) */
-    --good: #0ca30c;
-    --warning: #fab219;
-    --critical: #d03b3b;
-  }
+  /* ブランド:信頼のネイビー × 成長のグリーン × 特別感のゴールド */
+  --navy: #123a5e;
+  --navy-deep: #0a2540;
+  --navy-soft: #e9f0f7;
+  --mint: #0fa36b;
+  --mint-deep: #0b7d51;
+  --mint-soft: #e3f6ee;
+  --gold: #b8860b;
+  --gold-bright: #e8b023;
+  --gold-soft: #fbf2dc;
 
-  * { box-sizing: border-box; }
-  body {
-    margin: 0;
-    background: var(--page);
-    color: var(--text-primary);
-    font-family: system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", "Yu Gothic", Meiryo, "Noto Sans JP", sans-serif;
-    font-feature-settings: 'palt' 1;
-    line-height: 1.6;
-  }
-  .wrap { max-width: 640px; margin: 0 auto; padding: 20px 16px 80px; }
-  [hidden] { display: none !important; }
+  /* グラフ:利回り3水準は大きさの順序なので同色相の濃淡 */
+  --series-3: #86b6ef;
+  --series-5: #2a78d6;
+  --series-7: #104281;
+  --principal: #8b98a4;
 
-  header.top { text-align: center; padding: 28px 16px 20px; }
-  header.top .logo {
-    display: inline-flex; align-items: center; gap: 8px;
-    font-weight: 800; font-size: 15px; color: var(--brand-navy); letter-spacing: .02em;
-  }
-  header.top .logo .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--brand-mint); }
-  header.top h1 { margin: 10px 0 6px; font-size: 26px; font-weight: 800; }
-  header.top p { margin: 0; color: var(--text-secondary); font-size: 14px; }
+  /* ポートフォリオのテーマ = 種類の違い(categorical) */
+  --cat-1: #2a78d6;
+  --cat-2: #eb6834;
+  --cat-3: #1baf7a;
+  --cat-4: #eda100;
 
-  .card {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 18px;
-    padding: 22px;
-    box-shadow: 0 1px 3px rgba(15,23,32,0.04), 0 6px 20px rgba(15,23,32,0.05);
-    margin-bottom: 16px;
-  }
+  /* 状態(必ず文字ラベルと併記する) */
+  --good: #0ca30c;
+  --warn: #fab219;
+  --bad: #d03b3b;
 
-  h2.section-title { font-size: 16px; margin: 0 0 4px; }
-  p.section-sub { font-size: 12.5px; color: var(--text-muted); margin: 0 0 6px; }
+  /* 診断タイプ別 */
+  --t-stable: #0f9d6f;
+  --t-balance: #2a6bab;
+  --t-active: #d97706;
 
-  /* ---------- 入力フォーム ---------- */
-  .seg-head {
-    display: flex; align-items: baseline; gap: 8px;
-    margin: 22px 0 10px;
-    padding-bottom: 8px;
-    border-bottom: 1px solid var(--grid);
-  }
-  .seg-head:first-child { margin-top: 0; }
-  .seg-head .t { font-size: 14px; font-weight: 800; }
-  .seg-head .s { font-size: 11.5px; color: var(--text-muted); }
-  .seg-head .sum { margin-left: auto; font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--brand-navy); }
+  --r-sm: 12px;
+  --r-md: 16px;
+  --r-lg: 22px;
+  --shadow-1: 0 1px 2px rgba(12,28,44,0.04), 0 4px 14px rgba(12,28,44,0.05);
+  --shadow-2: 0 2px 6px rgba(12,28,44,0.06), 0 14px 34px rgba(12,28,44,0.10);
+}
 
-  .field { margin-bottom: 14px; }
-  .field label { display: block; font-size: 13px; font-weight: 700; color: var(--text-secondary); margin-bottom: 5px; }
-  .field .note { display: block; font-size: 11.5px; color: var(--text-muted); font-weight: 400; margin-top: 1px; }
-  .input-yen { position: relative; }
-  .input-yen input {
-    width: 100%;
-    padding: 11px 14px 11px 32px;
-    border-radius: 12px;
-    border: 1.5px solid var(--grid);
-    background: var(--surface-1);
-    color: var(--text-primary);
-    font-size: 16px;
-    font-variant-numeric: tabular-nums;
-    outline: none;
-    transition: border-color .15s;
-  }
-  .input-yen input:focus { border-color: var(--brand-navy); }
-  .input-yen::before {
-    content: "¥"; position: absolute; left: 12px; top: 50%;
-    transform: translateY(-50%); color: var(--text-muted); font-weight: 700; pointer-events: none;
-  }
+* { box-sizing: border-box; }
 
-  button { font-family: inherit; cursor: pointer; }
-  .btn-primary {
-    width: 100%; padding: 14px 20px; border: none; border-radius: 12px;
-    background: var(--brand-navy); color: #fff; font-size: 15px; font-weight: 700;
-    transition: background .15s, transform .05s;
-  }
-  .btn-primary:hover { background: var(--brand-navy-deep); }
-  .btn-primary:active { transform: scale(0.99); }
-  .btn-outline {
-    width: 100%; padding: 12px 20px; border: 1.5px solid var(--brand-navy);
-    border-radius: 12px; background: transparent; color: var(--brand-navy);
-    font-size: 14px; font-weight: 700;
-  }
-  .btn-text {
-    background: none; border: none; color: var(--text-muted);
-    font-size: 13px; text-decoration: underline; padding: 6px;
-  }
+body {
+  margin: 0;
+  background:
+    radial-gradient(1200px 600px at 50% -200px, #ffffff 0%, rgba(255,255,255,0) 70%),
+    linear-gradient(180deg, var(--page) 0%, var(--page-2) 100%);
+  background-attachment: fixed;
+  color: var(--ink);
+  font-family: system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Hiragino Kaku Gothic ProN",
+               "Yu Gothic UI", "Yu Gothic", Meiryo, "Noto Sans JP", sans-serif;
+  font-feature-settings: 'palt' 1;
+  line-height: 1.7;
+  -webkit-text-size-adjust: 100%;
+}
 
-  /* ---------- 診断結果ヒーロー ---------- */
-  .result-hero { text-align: center; padding: 4px 0; }
-  .result-hero .label { font-size: 13px; font-weight: 700; color: var(--text-secondary); }
-  .result-hero .amount {
-    font-size: 44px; font-weight: 800; color: var(--brand-navy);
-    margin: 4px 0 2px; font-variant-numeric: tabular-nums; line-height: 1.1;
-  }
-  .result-hero .amount small { font-size: 18px; font-weight: 700; }
-  .result-hero .sub { font-size: 12.5px; color: var(--text-muted); }
-  .result-comment {
-    background: var(--brand-mint-soft);
-    border-radius: 12px; padding: 13px 15px; font-size: 13.5px;
-    color: var(--text-primary); margin-top: 16px;
-  }
-  .breakdown {
-    display: flex; justify-content: space-between; font-size: 12.5px;
-    color: var(--text-secondary); border-top: 1px solid var(--grid);
-    margin-top: 18px; padding-top: 14px;
-  }
-  .breakdown div { text-align: center; flex: 1; }
-  .breakdown .v { font-weight: 700; color: var(--text-primary); font-size: 14px; margin-top: 2px; font-variant-numeric: tabular-nums; }
+.wrap { max-width: 620px; margin: 0 auto; padding: 0 16px 90px; }
+[hidden] { display: none !important; }
+button { font-family: inherit; cursor: pointer; }
 
-  /* ---------- 気づきカード ---------- */
-  .insight {
-    border: 1px solid var(--border);
-    border-left: 4px solid var(--brand-mint);
-    border-radius: 12px;
-    background: var(--surface-1);
-    padding: 14px 16px;
-    margin-top: 12px;
-  }
-  .insight .h { font-size: 13px; font-weight: 800; margin-bottom: 4px; }
-  .insight .b { font-size: 13px; color: var(--text-secondary); }
-  .insight .big {
-    font-size: 24px; font-weight: 800; color: var(--brand-mint);
-    font-variant-numeric: tabular-nums; display: block; margin: 6px 0 2px;
-  }
-  .insight.alert { border-left-color: var(--critical); }
-  .insight.alert .big { color: var(--critical); }
+/* ---------- 演出 ---------- */
+@keyframes riseIn { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+@keyframes popIn  { from { opacity: 0; transform: scale(.86); } to { opacity: 1; transform: none; } }
+@keyframes pulseGlow {
+  0%, 100% { box-shadow: 0 6px 18px rgba(15,163,107,.32); }
+  50%      { box-shadow: 0 10px 28px rgba(15,163,107,.55); }
+}
+@keyframes shimmer { from { background-position: -420px 0; } to { background-position: 420px 0; } }
 
-  /* ---------- 平均との比較バー ---------- */
-  .cmp-row { margin-bottom: 14px; }
-  .cmp-head { display: flex; align-items: center; gap: 8px; font-size: 13px; }
-  .cmp-head .name { font-weight: 700; }
-  .pill {
-    font-size: 10.5px; font-weight: 800; padding: 1px 8px; border-radius: 999px;
-    border: 1px solid var(--border); white-space: nowrap;
-  }
-  .pill .ic { margin-right: 3px; }
-  .pill-over { color: var(--text-primary); background: color-mix(in srgb, var(--critical) 16%, transparent); border-color: var(--critical); }
-  .pill-mid  { color: var(--text-primary); background: color-mix(in srgb, var(--warning) 18%, transparent); border-color: var(--warning); }
-  .pill-good { color: var(--text-primary); background: color-mix(in srgb, var(--good) 14%, transparent); border-color: var(--good); }
-  .cmp-track {
-    position: relative; height: 12px; border-radius: 6px;
-    background: var(--grid); margin: 6px 0 4px; overflow: visible;
-  }
-  .cmp-fill { height: 100%; border-radius: 6px; background: var(--brand-navy); }
-  .cmp-avg {
-    position: absolute; top: -3px; width: 2px; height: 18px;
-    background: var(--text-secondary); border-radius: 1px;
-  }
-  .cmp-foot {
-    display: flex; justify-content: space-between;
-    font-size: 11.5px; color: var(--text-muted); font-variant-numeric: tabular-nums;
-  }
-  .cmp-foot .mine { color: var(--text-primary); font-weight: 700; }
+.reveal { animation: riseIn .5s cubic-bezier(.22,.9,.3,1) both; }
+.reveal:nth-child(2) { animation-delay: .07s; }
+.reveal:nth-child(3) { animation-delay: .14s; }
+.reveal:nth-child(4) { animation-delay: .21s; }
+.reveal:nth-child(5) { animation-delay: .28s; }
+.reveal:nth-child(6) { animation-delay: .35s; }
 
-  /* ---------- 無料 / 有料の対比 ---------- */
-  .plan-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 4px; }
-  .plan-col { border-radius: 12px; padding: 12px 13px; font-size: 12px; }
-  .plan-col .ph { font-size: 11px; font-weight: 800; letter-spacing: .04em; margin-bottom: 8px; }
-  .plan-col ul { margin: 0; padding-left: 15px; }
-  .plan-col li { margin-bottom: 4px; }
-  .plan-free { background: var(--surface-1); border: 1px solid var(--border); color: var(--text-secondary); }
-  .plan-free .ph { color: var(--text-muted); }
-  .plan-paid { background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.25); color: #fff; }
-  .plan-paid .ph { color: #fff; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+  html { scroll-behavior: auto; }
+}
 
-  .cta-card {
-    background: linear-gradient(135deg, var(--brand-navy) 0%, var(--brand-navy-deep) 100%);
-    color: #fff; border-radius: 18px; padding: 20px; margin-bottom: 16px;
-  }
-  .cta-card h3 { margin: 0 0 6px; font-size: 17px; }
-  .cta-card > p { margin: 0 0 14px; font-size: 13px; opacity: .9; }
-  .btn-cta {
-    width: 100%; padding: 13px; border: none; border-radius: 12px;
-    background: var(--brand-mint); color: #fff; font-weight: 700; font-size: 14px;
-  }
-  .cta-card .btn-cta { margin-top: 14px; }
+/* ---------- ヘッダー ---------- */
+header.top { text-align: center; padding: 30px 8px 18px; }
+.logo {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-size: 12px; font-weight: 800; letter-spacing: .09em;
+  color: var(--navy); background: var(--card);
+  border: 1px solid var(--border); border-radius: 999px;
+  padding: 5px 14px; box-shadow: var(--shadow-1);
+}
+.logo .dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--mint); box-shadow: 0 0 0 3px var(--mint-soft);
+}
+header.top h1 {
+  margin: 14px 0 6px; font-size: 27px; font-weight: 800;
+  letter-spacing: -.01em; line-height: 1.35;
+}
+header.top h1 em { font-style: normal; color: var(--navy); }
+header.top p { margin: 0; color: var(--ink-2); font-size: 13.5px; }
 
-  /* ---------- モーダル ---------- */
-  .modal-overlay {
-    position: fixed; inset: 0; background: rgba(0,0,0,0.5);
-    display: flex; align-items: flex-end; justify-content: center; z-index: 50;
-  }
-  .modal {
-    background: var(--card); width: 100%; max-width: 640px;
-    border-radius: 20px 20px 0 0; padding: 26px 22px 30px;
-  }
-  .modal h3 { margin: 0 0 4px; font-size: 18px; }
-  .modal .price { font-size: 13px; color: var(--text-muted); margin-bottom: 16px; }
-  .modal ul { margin: 0 0 20px; padding-left: 20px; font-size: 14px; color: var(--text-secondary); }
-  .modal li { margin-bottom: 6px; }
-  .modal .demo-note { font-size: 11px; color: var(--text-muted); text-align: center; margin-top: 10px; }
+/* ---------- 進行ステップ ---------- */
+.steps { display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 16px; }
+.steps .s {
+  font-size: 11px; font-weight: 700; color: var(--ink-3);
+  display: flex; align-items: center; gap: 5px;
+}
+.steps .s .n {
+  width: 20px; height: 20px; border-radius: 50%;
+  background: var(--line); color: var(--card);
+  display: grid; place-items: center; font-size: 11px; font-weight: 800;
+}
+.steps .s.on { color: var(--navy); }
+.steps .s.on .n { background: var(--navy); }
+.steps .s.done .n { background: var(--mint); }
+.steps .bar { width: 18px; height: 2px; background: var(--line); border-radius: 1px; }
 
-  /* ---------- 有料画面 ---------- */
-  .badge-premium {
-    display: inline-block; background: var(--brand-mint); color: #fff;
-    font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 999px; margin-bottom: 10px;
-  }
-  /* 居住形態の選択 */
-  .choice-options { display: flex; gap: 10px; margin-top: 12px; }
-  .choice-btn {
-    flex: 1; padding: 16px 8px; border-radius: 14px; border: 1.5px solid var(--grid);
-    background: var(--surface-1); color: var(--text-primary);
-    font-size: 15px; font-weight: 800; text-align: center; line-height: 1.4;
-    transition: border-color .15s, background .15s;
-  }
-  .choice-btn .sub { display: block; font-size: 11.5px; font-weight: 400; color: var(--text-muted); margin-top: 3px; }
-  .choice-btn.selected { border-color: var(--brand-navy); background: var(--brand-mint-soft); color: var(--brand-navy); }
-  .choice-btn.selected .sub { color: var(--brand-navy); }
-  .form-lock {
-    text-align: center; font-size: 13px; color: var(--text-muted);
-    padding: 26px 10px; border: 1.5px dashed var(--grid); border-radius: 14px; margin-top: 20px;
-  }
+/* ---------- カード ---------- */
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 22px 20px;
+  box-shadow: var(--shadow-1);
+  margin-bottom: 16px;
+}
+.card.tight { padding: 18px 16px; }
 
-  /* 比較表示のトグル */
-  .toggle-row {
-    display: flex; align-items: center; gap: 8px; margin-top: 10px;
-    font-size: 12.5px; color: var(--text-secondary);
-  }
-  .toggle-row input { accent-color: var(--brand-navy); width: 16px; height: 16px; }
+h2.section-title {
+  font-size: 17px; font-weight: 800; margin: 0 0 3px;
+  display: flex; align-items: center; gap: 8px; letter-spacing: -.01em;
+}
+h2.section-title .ic { font-size: 19px; }
+p.section-sub { font-size: 12.5px; color: var(--ink-3); margin: 0 0 4px; line-height: 1.6; }
 
-  .risk-options { display: flex; gap: 8px; margin-top: 10px; }
-  .risk-btn {
-    flex: 1; padding: 11px 6px; border-radius: 12px; border: 1.5px solid var(--grid);
-    background: var(--surface-1); color: var(--text-primary);
-    font-size: 13px; font-weight: 700; text-align: center;
-  }
-  .risk-btn .sub { display: block; font-size: 11px; font-weight: 400; color: var(--text-muted); margin-top: 2px; }
-  .risk-btn.selected { border-color: var(--brand-navy); background: var(--brand-mint-soft); color: var(--brand-navy); }
+/* ---------- 入力フォーム ---------- */
+.seg-head {
+  display: flex; align-items: center; gap: 8px;
+  margin: 26px 0 12px; padding-bottom: 9px;
+  border-bottom: 2px solid var(--line);
+}
+.seg-head:first-child { margin-top: 0; }
+.seg-head .t { font-size: 14.5px; font-weight: 800; }
+.seg-head .s { font-size: 11px; color: var(--ink-3); }
+.seg-head .sum {
+  margin-left: auto; font-size: 14px; font-weight: 800;
+  font-variant-numeric: tabular-nums; color: var(--navy);
+  background: var(--navy-soft); border-radius: 999px; padding: 2px 12px;
+}
 
-  /* スライダー行 */
-  .ctrl { margin-top: 16px; }
-  .ctrl-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 6px; }
-  .ctrl-head label { font-size: 13px; font-weight: 700; color: var(--text-secondary); }
-  .ctrl-head .val { margin-left: auto; font-size: 15px; font-weight: 800; font-variant-numeric: tabular-nums; }
-  input[type=range] {
-    width: 100%; accent-color: var(--brand-navy); height: 22px; margin: 0;
-  }
-  .ctrl-scale { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted); }
+.field { margin-bottom: 14px; }
+.field label { display: block; font-size: 13px; font-weight: 700; color: var(--ink-2); margin-bottom: 5px; }
+.field .note { display: block; font-size: 11.5px; color: var(--ink-3); font-weight: 400; margin-top: 1px; line-height: 1.5; }
 
-  .rate-tabs { display: flex; gap: 6px; margin-top: 8px; }
-  .rate-tab {
-    flex: 1; padding: 8px 4px; border-radius: 10px; border: 1.5px solid var(--grid);
-    background: var(--surface-1); color: var(--text-secondary); font-size: 12.5px; font-weight: 700;
-  }
-  .rate-tab.selected { border-color: var(--brand-navy); color: #fff; background: var(--brand-navy); }
+.input-yen { position: relative; }
+.input-yen input {
+  width: 100%; padding: 12px 14px 12px 34px;
+  border-radius: var(--r-sm); border: 1.5px solid var(--line);
+  background: var(--surface); color: var(--ink);
+  font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums;
+  outline: none; transition: border-color .15s, box-shadow .15s, background .15s;
+}
+.input-yen input:focus {
+  border-color: var(--navy); background: var(--card);
+  box-shadow: 0 0 0 3px rgba(18,58,94,.10);
+}
+.input-yen::before {
+  content: "¥"; position: absolute; left: 13px; top: 50%;
+  transform: translateY(-50%); color: var(--ink-3); font-weight: 800; pointer-events: none;
+}
 
-  /* グラフ枠(高さを固定して縦長を防ぐ) */
-  .chart-box { position: relative; height: 230px; margin-top: 14px; }
-  @media (max-width: 420px) { .chart-box { height: 200px; } }
+/* ---------- ボタン ---------- */
+.btn-primary {
+  width: 100%; padding: 15px 20px; border: none; border-radius: 14px;
+  background: linear-gradient(135deg, var(--navy) 0%, var(--navy-deep) 100%);
+  color: #fff; font-size: 15.5px; font-weight: 800; letter-spacing: .01em;
+  box-shadow: 0 6px 18px rgba(10,37,64,.24);
+  transition: transform .12s, box-shadow .2s, filter .2s;
+}
+.btn-primary:hover { transform: translateY(-2px); box-shadow: 0 10px 26px rgba(10,37,64,.32); }
+.btn-primary:active { transform: translateY(0) scale(.99); }
+.btn-primary:disabled { opacity: .45; cursor: not-allowed; transform: none; box-shadow: none; }
 
-  .legend { display: flex; flex-wrap: wrap; gap: 8px 14px; justify-content: center; margin-top: 12px; font-size: 12px; }
-  .legend .item { display: flex; align-items: center; gap: 6px; color: var(--text-secondary); }
-  .legend .swatch { width: 14px; height: 3px; border-radius: 2px; }
-  .legend .swatch.dashed { background: repeating-linear-gradient(to right, var(--series-principal) 0 4px, transparent 4px 7px); }
-  .legend .val { font-weight: 700; color: var(--text-primary); font-variant-numeric: tabular-nums; }
+.btn-outline {
+  width: 100%; padding: 12px 20px; border: 1.5px solid var(--navy);
+  border-radius: var(--r-sm); background: var(--card); color: var(--navy);
+  font-size: 14px; font-weight: 800; transition: background .15s, transform .12s;
+}
+.btn-outline:hover { background: var(--navy-soft); transform: translateY(-1px); }
 
-  table.data-table { width: 100%; border-collapse: collapse; font-size: 12.5px; margin-top: 14px; }
-  table.data-table th, table.data-table td {
-    padding: 7px 6px; text-align: right; border-bottom: 1px solid var(--grid); font-variant-numeric: tabular-nums;
-  }
-  table.data-table th:first-child, table.data-table td:first-child { text-align: left; color: var(--text-secondary); }
-  table.data-table thead th { color: var(--text-muted); font-weight: 700; font-size: 11px; }
+.btn-text {
+  background: none; border: none; color: var(--ink-3);
+  font-size: 13px; text-decoration: underline; padding: 8px;
+}
+.btn-text:hover { color: var(--navy); }
 
-  /* +1,000円 比較 */
-  .boost-list { margin-top: 12px; }
-  .boost-row {
-    display: flex; align-items: center; gap: 10px;
-    padding: 10px 12px; border-radius: 10px; background: var(--surface-1);
-    border: 1px solid var(--border); margin-bottom: 8px;
-  }
-  .boost-row .plus { font-size: 13px; font-weight: 800; color: var(--brand-navy); white-space: nowrap; }
-  .boost-row .arrow { color: var(--text-muted); font-size: 12px; }
-  .boost-row .gain { margin-left: auto; text-align: right; }
-  .boost-row .gain .g { font-size: 16px; font-weight: 800; color: var(--brand-mint); font-variant-numeric: tabular-nums; }
-  .boost-row .gain .s { font-size: 11px; color: var(--text-muted); }
+/* 課金ボタン(いちばん押させたいので金色に光らせる) */
+.btn-buy {
+  width: 100%; padding: 16px 20px; border: none; border-radius: 14px;
+  background: linear-gradient(135deg, var(--mint) 0%, var(--mint-deep) 100%);
+  color: #fff; font-size: 16px; font-weight: 800; letter-spacing: .01em;
+  position: relative; overflow: hidden;
+  animation: pulseGlow 2.6s ease-in-out infinite;
+  transition: transform .14s;
+}
+.btn-buy:hover { transform: translateY(-2px) scale(1.015); }
+.btn-buy:active { transform: scale(.99); }
+.btn-buy::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(100deg, transparent 30%, rgba(255,255,255,.38) 50%, transparent 70%);
+  background-size: 420px 100%; animation: shimmer 2.8s linear infinite;
+}
 
-  /* ポートフォリオ */
-  .port-bar { display: flex; height: 26px; border-radius: 8px; overflow: hidden; margin-top: 12px; gap: 2px; }
-  .port-bar .seg { display: flex; align-items: center; justify-content: center; font-size: 11.5px; font-weight: 700; color: #fff; }
-  .port-list { margin-top: 12px; }
-  .port-item {
-    display: flex; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--grid);
-  }
-  .port-item:last-child { border-bottom: none; }
-  .port-item .sw { width: 10px; height: 10px; border-radius: 3px; margin-top: 6px; flex-shrink: 0; }
-  .port-item .nm { font-size: 13.5px; font-weight: 700; }
-  .port-item .pc { font-size: 13.5px; font-weight: 800; font-variant-numeric: tabular-nums; margin-left: auto; flex-shrink: 0; }
-  .port-item .ds { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
-  .port-item .ex { font-size: 11.5px; color: var(--text-muted); margin-top: 3px; }
-  .alloc-comment {
-    background: var(--surface-1); border-radius: 10px; padding: 12px 14px;
-    font-size: 13px; color: var(--text-secondary); margin-top: 12px;
-  }
+/* ---------- 居住形態 ---------- */
+.choice-options { display: flex; gap: 10px; margin-top: 12px; }
+.choice-btn {
+  flex: 1; padding: 18px 8px; border-radius: var(--r-md);
+  border: 2px solid var(--line); background: var(--surface); color: var(--ink);
+  font-size: 15px; font-weight: 800; text-align: center; line-height: 1.45;
+  transition: border-color .18s, background .18s, transform .12s;
+}
+.choice-btn .em { display: block; font-size: 26px; line-height: 1.2; margin-bottom: 3px; }
+.choice-btn .sub { display: block; font-size: 11.5px; font-weight: 500; color: var(--ink-3); margin-top: 2px; }
+.choice-btn:hover { transform: translateY(-2px); border-color: var(--navy); }
+.choice-btn.selected { border-color: var(--navy); background: var(--navy-soft); color: var(--navy); }
+.choice-btn.selected .sub { color: var(--navy); }
 
-  /* ---------- 用語ツールチップ ---------- */
-  .term {
-    font: inherit; color: var(--brand-navy); font-weight: 700;
-    background: none; border: none; padding: 0 1px;
-    border-bottom: 1.5px dotted var(--brand-navy); cursor: help;
-  }
-  .term::after { content: "?"; font-size: 9px; vertical-align: super; margin-left: 1px; font-weight: 800; }
-  #tip {
-    position: absolute; z-index: 100; max-width: 300px;
-    background: var(--brand-navy-deep); color: #fff;
-    border-radius: 12px; padding: 12px 14px;
-    font-size: 12.5px; line-height: 1.65;
-    box-shadow: 0 8px 24px rgba(15,23,32,0.25);
-  }
-  #tip .tip-t { font-weight: 800; font-size: 13px; margin-bottom: 3px; display: block; }
-  #tip .tip-close {
-    display: block; margin: 8px 0 0 auto; background: none; border: none;
-    color: rgba(255,255,255,0.7); font-size: 11px; text-decoration: underline; padding: 0;
-  }
+.form-lock {
+  text-align: center; font-size: 13px; color: var(--ink-3); line-height: 1.8;
+  padding: 28px 12px; border: 2px dashed var(--line);
+  border-radius: var(--r-md); margin-top: 20px;
+}
 
-  /* ---------- チェックリスト ---------- */
-  .progress-wrap { display: flex; align-items: center; gap: 10px; margin: 14px 0 6px; }
-  .progress { flex: 1; height: 8px; border-radius: 4px; background: var(--grid); overflow: hidden; }
-  .progress-fill { height: 100%; width: 0; background: var(--brand-mint); border-radius: 4px; transition: width .25s; }
-  .progress-label { font-size: 12px; font-weight: 800; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+/* ---------- 診断結果ヒーロー ---------- */
+.hero-card {
+  background: linear-gradient(150deg, var(--navy) 0%, var(--navy-deep) 100%);
+  border-radius: var(--r-lg); padding: 26px 22px 22px;
+  color: #fff; box-shadow: var(--shadow-2); margin-bottom: 16px;
+  position: relative; overflow: hidden;
+}
+.hero-card::before {
+  content: ""; position: absolute; right: -60px; top: -70px;
+  width: 200px; height: 200px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(15,163,107,.36), transparent 68%);
+}
+.hero-card .lb { font-size: 12.5px; font-weight: 700; opacity: .82; letter-spacing: .02em; }
+.hero-card .amt {
+  font-size: 52px; font-weight: 800; line-height: 1.05;
+  margin: 6px 0 2px; font-variant-numeric: tabular-nums; letter-spacing: -.02em;
+}
+.hero-card .amt small { font-size: 20px; font-weight: 700; margin-left: 2px; }
+.hero-card .rate { font-size: 12.5px; opacity: .8; }
+.hero-card .split {
+  display: flex; gap: 8px; margin-top: 18px;
+  border-top: 1px solid rgba(255,255,255,.18); padding-top: 14px;
+}
+.hero-card .split div { flex: 1; text-align: center; }
+.hero-card .split .k { font-size: 11px; opacity: .72; }
+.hero-card .split .v { font-size: 14.5px; font-weight: 800; font-variant-numeric: tabular-nums; }
 
-  .todo-item {
-    display: flex; gap: 12px; align-items: flex-start;
-    padding: 14px; margin-top: 10px;
-    border: 1.5px solid var(--grid); border-radius: 14px; background: var(--surface-1);
-    cursor: pointer; transition: border-color .15s, background .15s, opacity .15s;
-  }
-  .todo-item:hover { border-color: var(--brand-navy); }
-  .todo-item.done { background: var(--brand-mint-soft); border-color: var(--brand-mint); }
-  .todo-item.done .todo-title { text-decoration: line-through; color: var(--text-muted); }
-  .todo-check {
-    width: 24px; height: 24px; border-radius: 8px; flex-shrink: 0;
-    border: 2px solid var(--grid); background: var(--card);
-    display: flex; align-items: center; justify-content: center;
-    font-size: 14px; font-weight: 800; color: transparent;
-  }
-  .todo-item.done .todo-check { background: var(--brand-mint); border-color: var(--brand-mint); color: #fff; }
-  .todo-no { font-size: 11px; font-weight: 800; color: var(--brand-mint); letter-spacing: .06em; }
-  .todo-title { font-size: 14px; font-weight: 800; margin-top: 1px; }
-  .todo-body { font-size: 12.5px; color: var(--text-secondary); margin-top: 4px; }
-  .done-banner {
-    margin-top: 14px; padding: 14px; border-radius: 12px; text-align: center;
-    background: var(--brand-mint-soft); color: var(--brand-navy); font-weight: 800; font-size: 14px;
-  }
+.result-comment {
+  background: var(--mint-soft); border-left: 4px solid var(--mint);
+  border-radius: var(--r-sm); padding: 14px 16px;
+  font-size: 13.5px; line-height: 1.75; margin-top: 16px;
+}
 
-  /* ---------- 目標から逆算 ---------- */
-  .goal-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
-  .chip {
-    padding: 9px 13px; border-radius: 999px; border: 1.5px solid var(--grid);
-    background: var(--surface-1); color: var(--text-secondary);
-    font-size: 12.5px; font-weight: 700;
-  }
-  .chip.selected { border-color: var(--brand-navy); background: var(--brand-navy); color: #fff; }
+/* ---------- 気づき ---------- */
+.insight {
+  border: 1px solid var(--border); border-left: 4px solid var(--mint);
+  border-radius: var(--r-sm); background: var(--surface);
+  padding: 15px 16px; margin-top: 12px;
+}
+.insight .h { font-size: 13.5px; font-weight: 800; margin-bottom: 3px; }
+.insight .b { font-size: 12.5px; color: var(--ink-2); line-height: 1.7; }
+.insight .big {
+  display: block; font-size: 26px; font-weight: 800; color: var(--mint-deep);
+  font-variant-numeric: tabular-nums; margin: 8px 0 3px; letter-spacing: -.01em;
+}
+.insight.alert { border-left-color: var(--bad); background: #fdf4f4; }
+.insight.alert .big { color: var(--bad); }
 
-  .goal-need { text-align: center; padding: 20px 0 6px; }
-  .goal-need .lb { font-size: 13px; font-weight: 700; color: var(--text-secondary); }
-  .goal-need .amt {
-    font-size: 40px; font-weight: 800; color: var(--brand-navy);
-    font-variant-numeric: tabular-nums; line-height: 1.15; margin: 4px 0 2px;
-  }
-  .goal-need .amt small { font-size: 17px; font-weight: 700; }
-  .goal-need .sb { font-size: 12px; color: var(--text-muted); }
+/* ---------- 平均比較 ---------- */
+.cmp-row { margin-bottom: 15px; }
+.cmp-head { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.cmp-head .name { font-weight: 700; }
+.pill {
+  font-size: 10.5px; font-weight: 800; padding: 2px 9px;
+  border-radius: 999px; border: 1px solid var(--border); white-space: nowrap;
+}
+.pill .ic { margin-right: 3px; }
+.pill-over { background: #fdeaea; border-color: var(--bad); }
+.pill-mid  { background: #fdf3dc; border-color: var(--warn); }
+.pill-good { background: #e6f6e6; border-color: var(--good); }
+.cmp-track { position: relative; height: 12px; border-radius: 6px; background: var(--line); margin: 7px 0 4px; }
+.cmp-fill {
+  height: 100%; border-radius: 6px;
+  background: linear-gradient(90deg, var(--navy), #2a6bab);
+  transition: width .6s cubic-bezier(.22,.9,.3,1);
+}
+.cmp-avg { position: absolute; top: -3px; width: 2px; height: 18px; background: var(--ink-2); border-radius: 1px; }
+.cmp-foot { display: flex; justify-content: space-between; font-size: 11.5px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.cmp-foot .mine { color: var(--ink); font-weight: 700; }
 
-  .gap-box { border-radius: 14px; padding: 16px; margin-top: 16px; border: 1px solid var(--border); }
-  .gap-box.short { background: color-mix(in srgb, var(--critical) 8%, var(--surface-1)); border-color: var(--critical); }
-  .gap-box.ok { background: var(--brand-mint-soft); border-color: var(--brand-mint); }
-  .gap-box .gh { font-size: 14px; font-weight: 800; margin-bottom: 6px; }
-  .gap-box .gb { font-size: 13px; color: var(--text-secondary); }
-  .gap-box .gbig {
-    display: block; font-size: 26px; font-weight: 800; margin: 8px 0 4px;
-    font-variant-numeric: tabular-nums;
-  }
-  .gap-box.short .gbig { color: var(--critical); }
-  .gap-box.ok .gbig { color: var(--brand-mint); }
-  .gap-box .btn-apply {
-    width: 100%; margin-top: 12px; padding: 11px; border-radius: 10px;
-    border: 1.5px solid var(--brand-navy); background: var(--card);
-    color: var(--brand-navy); font-size: 13px; font-weight: 700;
-  }
+/* ---------- リスク許容度の3択 ---------- */
+.risk-options { display: flex; gap: 8px; margin-top: 12px; }
+.risk-btn {
+  flex: 1; padding: 14px 6px; border-radius: var(--r-md);
+  border: 2px solid var(--line); background: var(--surface); color: var(--ink);
+  font-size: 13px; font-weight: 800; text-align: center;
+  transition: border-color .18s, background .18s, transform .12s;
+}
+.risk-btn .em { display: block; font-size: 24px; line-height: 1.2; margin-bottom: 2px; }
+.risk-btn .sub { display: block; font-size: 10.5px; font-weight: 500; color: var(--ink-3); margin-top: 2px; }
+.risk-btn:hover { transform: translateY(-2px); }
+.risk-btn.selected { border-color: var(--navy); background: var(--navy-soft); color: var(--navy); }
+.risk-btn.selected .sub { color: var(--navy); }
 
-  .goal-bars { margin-top: 16px; }
-  .goal-bar-row { margin-bottom: 10px; }
-  .goal-bar-row .gl { display: flex; font-size: 12px; color: var(--text-secondary); }
-  .goal-bar-row .gl .gv { margin-left: auto; font-weight: 700; color: var(--text-primary); font-variant-numeric: tabular-nums; }
-  .goal-bar-row .gt { height: 12px; border-radius: 6px; background: var(--grid); margin-top: 4px; overflow: hidden; }
-  .goal-bar-row .gf { height: 100%; border-radius: 6px; }
+/* ---------- タイプ結果カード ---------- */
+.type-card {
+  border-radius: var(--r-lg); padding: 24px 20px; text-align: center;
+  color: #fff; margin-top: 16px; position: relative; overflow: hidden;
+  animation: popIn .45s cubic-bezier(.2,.9,.3,1.1) both;
+  box-shadow: var(--shadow-2);
+}
+.type-card::after {
+  content: ""; position: absolute; inset: 0;
+  background: radial-gradient(220px 120px at 50% -10%, rgba(255,255,255,.30), transparent 70%);
+}
+.type-card .kicker { font-size: 11px; font-weight: 800; letter-spacing: .14em; opacity: .85; }
+.type-card .em {
+  font-size: 60px; line-height: 1.1; display: block; margin: 6px 0 2px;
+  filter: drop-shadow(0 4px 10px rgba(0,0,0,.22));
+}
+.type-card .nm { font-size: 26px; font-weight: 800; letter-spacing: -.01em; }
+.type-card .cat { font-size: 14px; font-weight: 700; opacity: .95; margin-top: 4px; }
+.type-card .ds { font-size: 13px; line-height: 1.75; opacity: .95; margin-top: 12px; text-align: left; }
+.type-card .meters {
+  display: flex; gap: 8px; margin-top: 16px;
+  border-top: 1px solid rgba(255,255,255,.22); padding-top: 14px;
+}
+.type-card .meters div { flex: 1; }
+.type-card .meters .k { font-size: 10.5px; opacity: .78; }
+.type-card .meters .v { font-size: 14px; font-weight: 800; }
 
-  /* 保存カード */
-  .save-preview {
-    width: 100%; border-radius: 12px; border: 1px solid var(--border);
-    margin-top: 14px; display: block;
-  }
+/* ---------- 有料の壁(ブラー) ---------- */
+.locked {
+  position: relative; border-radius: var(--r-lg); overflow: hidden;
+  border: 1px solid var(--border); background: var(--card);
+  box-shadow: var(--shadow-1); margin-bottom: 16px;
+}
+/* ぼかしは背面に敷き、手前の案内カードが高さを決める(内容が切れないように) */
+.locked-peek {
+  position: absolute; inset: 0; padding: 20px;
+  filter: blur(5px); opacity: .6;
+  pointer-events: none; user-select: none;
+}
+.peek-title { font-size: 15px; font-weight: 800; margin-bottom: 10px; }
+.peek-row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.peek-row .sw { width: 12px; height: 12px; border-radius: 4px; flex-shrink: 0; }
+.peek-row .nm { font-size: 13.5px; font-weight: 700; }
+.peek-row .pc { margin-left: auto; font-size: 13.5px; font-weight: 800; }
+.peek-bar { display: flex; height: 26px; border-radius: 8px; overflow: hidden; gap: 2px; margin-bottom: 16px; }
+.peek-chart { display: flex; align-items: flex-end; gap: 6px; height: 90px; }
+.peek-chart i { flex: 1; border-radius: 5px 5px 0 0; background: linear-gradient(180deg, #2a78d6, #86b6ef); display: block; }
 
-  footer.foot { text-align: center; font-size: 11px; color: var(--text-muted); margin-top: 24px; }
+.locked-overlay {
+  position: relative; z-index: 1;
+  background: linear-gradient(180deg,
+    rgba(255,255,255,0) 0%,
+    rgba(255,255,255,.55) 26%,
+    rgba(255,255,255,.95) 46%,
+    #fff 58%);
+  padding: 170px 20px 24px; text-align: center;
+}
+.locked-overlay .lockic {
+  width: 46px; height: 46px; margin: 0 auto 10px; border-radius: 50%;
+  background: var(--gold-soft); border: 1px solid rgba(184,134,11,.35);
+  display: grid; place-items: center; font-size: 22px;
+}
+.locked-overlay h3 { margin: 0 0 4px; font-size: 19px; font-weight: 800; letter-spacing: -.01em; }
+.locked-overlay .sub { font-size: 12.5px; color: var(--ink-2); margin-bottom: 14px; }
+.unlock-list {
+  list-style: none; margin: 0 0 18px; padding: 0;
+  display: grid; gap: 7px; text-align: left;
+}
+.unlock-list li {
+  display: flex; align-items: flex-start; gap: 8px;
+  font-size: 13px; color: var(--ink-2); font-weight: 600;
+}
+.unlock-list li::before {
+  content: "✓"; color: var(--mint); font-weight: 900; flex-shrink: 0;
+}
+.price-tag {
+  display: inline-flex; align-items: baseline; gap: 6px; margin-bottom: 12px;
+}
+.price-tag .p { font-size: 34px; font-weight: 800; color: var(--navy); letter-spacing: -.02em; }
+.price-tag .u { font-size: 13px; font-weight: 700; color: var(--ink-2); }
+.price-tag .b {
+  font-size: 10.5px; font-weight: 800; color: var(--gold);
+  background: var(--gold-soft); border: 1px solid rgba(184,134,11,.3);
+  border-radius: 999px; padding: 2px 9px;
+}
+.buy-note { font-size: 11px; color: var(--ink-3); margin-top: 10px; }
+
+/* ---------- モーダル ---------- */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(8,20,32,.55);
+  backdrop-filter: blur(3px);
+  display: flex; align-items: flex-end; justify-content: center; z-index: 60;
+  animation: riseIn .2s ease both;
+}
+.modal {
+  background: var(--card); width: 100%; max-width: 620px;
+  border-radius: 24px 24px 0 0; padding: 26px 22px 30px;
+  animation: riseIn .28s cubic-bezier(.22,.9,.3,1) both;
+}
+.modal h3 { margin: 0 0 2px; font-size: 19px; font-weight: 800; }
+.modal .price { font-size: 12.5px; color: var(--ink-3); margin-bottom: 16px; }
+.modal .demo-note { font-size: 11px; color: var(--ink-3); text-align: center; margin-top: 12px; }
+
+/* ---------- 有料:タブ ---------- */
+.tabbar {
+  position: sticky; top: 0; z-index: 30;
+  display: flex; gap: 6px; padding: 10px 4px;
+  margin: 0 -4px 14px;
+  overflow-x: auto; scrollbar-width: none;
+  background: linear-gradient(180deg, var(--page) 72%, rgba(239,244,249,0));
+}
+.tabbar::-webkit-scrollbar { display: none; }
+.tab {
+  flex: 0 0 auto; min-width: 78px; padding: 9px 12px;
+  border-radius: 14px; border: 1.5px solid var(--line);
+  background: var(--card); color: var(--ink-2);
+  font-size: 11.5px; font-weight: 800; line-height: 1.3; text-align: center;
+  transition: background .16s, color .16s, border-color .16s, transform .12s;
+}
+.tab .ti { display: block; font-size: 18px; margin-bottom: 2px; }
+.tab:hover { transform: translateY(-1px); border-color: var(--navy); }
+.tab.selected {
+  background: linear-gradient(135deg, var(--navy), var(--navy-deep));
+  border-color: var(--navy-deep); color: #fff;
+  box-shadow: 0 5px 14px rgba(10,37,64,.26);
+}
+.tab-panel { animation: riseIn .32s cubic-bezier(.22,.9,.3,1) both; }
+
+.premium-flag {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: var(--gold-soft); color: var(--gold);
+  border: 1px solid rgba(184,134,11,.32);
+  font-size: 10.5px; font-weight: 800; letter-spacing: .06em;
+  padding: 3px 10px; border-radius: 999px; margin-bottom: 10px;
+}
+
+/* ---------- コントロール ---------- */
+.ctrl { margin-top: 18px; }
+.ctrl-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 7px; }
+.ctrl-head label { font-size: 13px; font-weight: 700; color: var(--ink-2); }
+.ctrl-head .val { margin-left: auto; font-size: 16px; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--navy); }
+input[type=range] { width: 100%; accent-color: var(--navy); height: 26px; margin: 0; }
+.ctrl-scale { display: flex; justify-content: space-between; font-size: 11px; color: var(--ink-3); }
+
+.rate-tabs { display: flex; gap: 6px; margin-top: 8px; }
+.rate-tab {
+  flex: 1; padding: 10px 4px; border-radius: var(--r-sm);
+  border: 1.5px solid var(--line); background: var(--surface);
+  color: var(--ink-2); font-size: 13px; font-weight: 800; transition: all .16s;
+}
+.rate-tab span { display: block; font-weight: 500; font-size: 10.5px; }
+.rate-tab.selected { border-color: var(--navy); color: #fff; background: var(--navy); }
+
+.toggle-row { display: flex; align-items: center; gap: 8px; margin-top: 12px; font-size: 12.5px; color: var(--ink-2); }
+.toggle-row input { accent-color: var(--navy); width: 17px; height: 17px; }
+
+/* ---------- グラフ ---------- */
+.chart-box { position: relative; height: 230px; margin-top: 16px; }
+@media (max-width: 420px) { .chart-box { height: 195px; } }
+
+.legend { display: flex; flex-wrap: wrap; gap: 8px 14px; justify-content: center; margin-top: 12px; font-size: 12px; }
+.legend .item { display: flex; align-items: center; gap: 6px; color: var(--ink-2); }
+.legend .swatch { width: 14px; height: 3px; border-radius: 2px; }
+.legend .swatch.dashed { background: repeating-linear-gradient(to right, var(--principal) 0 4px, transparent 4px 7px); }
+.legend .val { font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums; }
+
+.stat-row {
+  display: flex; gap: 8px; margin-top: 18px;
+  border-top: 1px solid var(--line); padding-top: 14px;
+}
+.stat-row div { flex: 1; text-align: center; }
+.stat-row .k { font-size: 11px; color: var(--ink-3); }
+.stat-row .v { font-size: 16px; font-weight: 800; font-variant-numeric: tabular-nums; margin-top: 1px; }
+
+table.data-table { width: 100%; border-collapse: collapse; font-size: 12.5px; margin-top: 14px; }
+table.data-table th, table.data-table td {
+  padding: 8px 6px; text-align: right; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums;
+}
+table.data-table th:first-child, table.data-table td:first-child { text-align: left; color: var(--ink-2); }
+table.data-table thead th { color: var(--ink-3); font-weight: 800; font-size: 11px; }
+
+/* +積立の比較 */
+.boost-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 14px; border-radius: var(--r-sm); background: var(--surface);
+  border: 1px solid var(--border); margin-bottom: 8px;
+}
+.boost-row .plus { font-size: 13px; font-weight: 800; color: var(--navy); white-space: nowrap; }
+.boost-row .arrow { color: var(--ink-3); }
+.boost-row .gain { margin-left: auto; text-align: right; }
+.boost-row .gain .g { font-size: 17px; font-weight: 800; color: var(--mint-deep); font-variant-numeric: tabular-nums; }
+.boost-row .gain .s { font-size: 10.5px; color: var(--ink-3); }
+
+/* ---------- ポートフォリオ ---------- */
+.port-bar { display: flex; height: 30px; border-radius: 9px; overflow: hidden; margin-top: 14px; gap: 2px; }
+.port-bar .seg {
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11.5px; font-weight: 800; color: #fff;
+  transition: width .5s cubic-bezier(.22,.9,.3,1);
+}
+.port-item { display: flex; gap: 11px; padding: 13px 0; border-bottom: 1px solid var(--line); }
+.port-item:last-child { border-bottom: none; }
+.port-item .sw { width: 11px; height: 11px; border-radius: 4px; margin-top: 7px; flex-shrink: 0; }
+.port-item .nm { font-size: 14px; font-weight: 800; }
+.port-item .pc { font-size: 14px; font-weight: 800; margin-left: auto; flex-shrink: 0; font-variant-numeric: tabular-nums; }
+.port-item .ds { font-size: 12.5px; color: var(--ink-2); margin-top: 2px; line-height: 1.65; }
+.port-item .ex {
+  font-size: 11.5px; color: var(--ink-3); margin-top: 5px;
+  background: var(--surface); border-radius: 7px; padding: 4px 9px; display: inline-block;
+}
+.alloc-comment {
+  background: var(--surface); border-radius: var(--r-sm);
+  padding: 14px 15px; font-size: 13px; color: var(--ink-2); margin-top: 14px; line-height: 1.75;
+}
+
+/* ---------- 用語ツールチップ ---------- */
+.term {
+  font: inherit; color: var(--navy); font-weight: 800;
+  background: none; border: none; padding: 0 1px;
+  border-bottom: 1.5px dotted var(--navy); cursor: help;
+}
+.term::after { content: "?"; font-size: 9px; vertical-align: super; margin-left: 1px; font-weight: 900; }
+#tip {
+  position: absolute; z-index: 100; max-width: 300px;
+  background: var(--navy-deep); color: #fff;
+  border-radius: 14px; padding: 13px 15px;
+  font-size: 12.5px; line-height: 1.7; box-shadow: var(--shadow-2);
+  animation: popIn .16s ease both;
+}
+#tip .tip-t { font-weight: 800; font-size: 13.5px; margin-bottom: 3px; display: block; color: #7fe3b8; }
+#tip .tip-close {
+  display: block; margin: 9px 0 0 auto; background: none; border: none;
+  color: rgba(255,255,255,.7); font-size: 11px; text-decoration: underline; padding: 0;
+}
+
+/* ---------- チェックリスト ---------- */
+.progress-wrap { display: flex; align-items: center; gap: 10px; margin: 16px 0 4px; }
+.progress { flex: 1; height: 9px; border-radius: 5px; background: var(--line); overflow: hidden; }
+.progress-fill {
+  height: 100%; width: 0; border-radius: 5px;
+  background: linear-gradient(90deg, var(--mint), var(--mint-deep));
+  transition: width .45s cubic-bezier(.22,.9,.3,1);
+}
+.progress-label { font-size: 12.5px; font-weight: 800; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+
+.todo-item {
+  display: flex; gap: 12px; align-items: flex-start;
+  padding: 15px; margin-top: 10px;
+  border: 1.5px solid var(--line); border-radius: var(--r-md); background: var(--surface);
+  cursor: pointer; transition: border-color .16s, background .16s, transform .12s;
+}
+.todo-item:hover { border-color: var(--navy); transform: translateY(-1px); }
+.todo-item.done { background: var(--mint-soft); border-color: var(--mint); }
+.todo-item.done .todo-title { text-decoration: line-through; color: var(--ink-3); }
+.todo-check {
+  width: 25px; height: 25px; border-radius: 9px; flex-shrink: 0;
+  border: 2px solid var(--line); background: var(--card);
+  display: grid; place-items: center; font-size: 14px; font-weight: 900; color: transparent;
+  transition: background .16s, border-color .16s;
+}
+.todo-item.done .todo-check { background: var(--mint); border-color: var(--mint); color: #fff; }
+.todo-no { font-size: 10.5px; font-weight: 800; color: var(--mint-deep); letter-spacing: .09em; }
+.todo-title { font-size: 14.5px; font-weight: 800; margin-top: 1px; line-height: 1.5; }
+.todo-body { font-size: 12.5px; color: var(--ink-2); margin-top: 5px; line-height: 1.75; }
+.done-banner {
+  margin-top: 14px; padding: 16px; border-radius: var(--r-md); text-align: center;
+  background: var(--mint-soft); color: var(--mint-deep); font-weight: 800; font-size: 14.5px;
+  animation: popIn .35s cubic-bezier(.2,.9,.3,1.1) both;
+}
+
+/* ---------- 目標逆算 ---------- */
+.goal-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.chip {
+  padding: 10px 14px; border-radius: 999px; border: 1.5px solid var(--line);
+  background: var(--surface); color: var(--ink-2); font-size: 12.5px; font-weight: 700;
+  transition: all .16s;
+}
+.chip:hover { transform: translateY(-1px); border-color: var(--navy); }
+.chip.selected { border-color: var(--navy); background: var(--navy); color: #fff; }
+
+.goal-need { text-align: center; padding: 22px 0 4px; }
+.goal-need .lb { font-size: 13px; font-weight: 700; color: var(--ink-2); }
+.goal-need .amt {
+  font-size: 42px; font-weight: 800; color: var(--navy);
+  font-variant-numeric: tabular-nums; line-height: 1.1; margin: 6px 0 3px; letter-spacing: -.02em;
+}
+.goal-need .amt small { font-size: 18px; font-weight: 700; }
+.goal-need .sb { font-size: 12px; color: var(--ink-3); }
+
+.gap-box { border-radius: var(--r-md); padding: 17px; margin-top: 18px; border: 1.5px solid var(--border); }
+.gap-box.short { background: #fdf5f5; border-color: rgba(208,59,59,.35); }
+.gap-box.ok { background: var(--mint-soft); border-color: rgba(15,163,107,.4); }
+.gap-box .gh { font-size: 14.5px; font-weight: 800; margin-bottom: 4px; }
+.gap-box .gb { font-size: 13px; color: var(--ink-2); line-height: 1.75; }
+.gap-box .gbig { display: block; font-size: 28px; font-weight: 800; margin: 8px 0 5px; font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+.gap-box.short .gbig { color: var(--bad); }
+.gap-box.ok .gbig { color: var(--mint-deep); }
+.gap-box .btn-apply {
+  width: 100%; margin-top: 14px; padding: 12px; border-radius: var(--r-sm);
+  border: 1.5px solid var(--navy); background: var(--card);
+  color: var(--navy); font-size: 13px; font-weight: 800; transition: background .15s;
+}
+.gap-box .btn-apply:hover { background: var(--navy-soft); }
+
+.goal-bars { margin-top: 18px; }
+.goal-bar-row { margin-bottom: 11px; }
+.goal-bar-row .gl { display: flex; font-size: 12px; color: var(--ink-2); }
+.goal-bar-row .gl .gv { margin-left: auto; font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums; }
+.goal-bar-row .gt { height: 12px; border-radius: 6px; background: var(--line); margin-top: 5px; overflow: hidden; }
+.goal-bar-row .gf { height: 100%; border-radius: 6px; transition: width .5s cubic-bezier(.22,.9,.3,1); }
+
+/* ---------- シェア ---------- */
+.share-frame {
+  margin-top: 16px; padding: 14px; border-radius: var(--r-md);
+  background: var(--surface); border: 1px solid var(--border); text-align: center;
+}
+.share-preview {
+  width: 100%; max-width: 260px; border-radius: 14px;
+  box-shadow: var(--shadow-2); display: block; margin: 0 auto;
+}
+.share-hint { font-size: 11.5px; color: var(--ink-3); margin-top: 12px; line-height: 1.7; }
+
+footer.foot {
+  text-align: center; font-size: 11px; color: var(--ink-3);
+  margin-top: 26px; line-height: 1.8;
+}
 </style>
 </head>
 <body>
 <div class="wrap">
 
   <header class="top">
-    <div class="logo"><span class="dot"></span>投資デビュー診断</div>
-    <h1 id="head-title">毎月いくら投資に回せる?</h1>
-    <p id="head-sub">支出を項目ごとに入れると、「意外と使っていた金額」が見えます。</p>
+    <div class="logo"><span class="dot"></span>TOSHI DEBUT</div>
+    <h1 id="head-title">毎月いくら<em>投資</em>に回せる?</h1>
+    <p id="head-sub">支出を項目ごとに入れると「意外と使っていた金額」が見えます</p>
+    <div class="steps" id="steps">
+      <span class="s on" data-step="1"><span class="n">1</span>入力</span>
+      <span class="bar"></span>
+      <span class="s" data-step="2"><span class="n">2</span>診断結果</span>
+      <span class="bar"></span>
+      <span class="s" data-step="3"><span class="n">3</span>詳細プラン</span>
+    </div>
   </header>
 
-  <!-- ===== STEP 1: 入力フォーム ===== -->
-  <div class="card" id="screen-input">
-    <div class="seg-head" style="margin-top:0;">
-      <span class="t">住まい</span><span class="s">かかる費用が変わります</span>
-    </div>
-    <div class="choice-options">
-      <button class="choice-btn" data-living="alone">一人暮らし<span class="sub">賃貸・下宿</span></button>
-      <button class="choice-btn" data-living="home">実家暮らし<span class="sub">自宅から通学</span></button>
-    </div>
-
-    <div class="form-lock" id="form-lock">
-      まず住まいを選んでください。<br>選んだ形態に合わせて、入力する支出の項目が変わります。
-    </div>
-
-    <div id="form-body" hidden>
-      <div class="seg-head">
-        <span class="t">収入</span><span class="s">月あたり</span>
-        <span class="sum" id="sum-income">¥0</span>
+  <!-- ============ STEP1: 入力 ============ -->
+  <div id="screen-input">
+    <div class="card reveal">
+      <h2 class="section-title"><span class="ic">🏠</span>いまの住まいは?</h2>
+      <p class="section-sub">かかる費用が変わるので、先に選んでください</p>
+      <div class="choice-options">
+        <button class="choice-btn" data-living="alone">
+          <span class="em">🔑</span>一人暮らし<span class="sub">賃貸・下宿</span>
+        </button>
+        <button class="choice-btn" data-living="home">
+          <span class="em">👨‍👩‍👧</span>実家暮らし<span class="sub">自宅から通学</span>
+        </button>
       </div>
-      <div id="fields-income"></div>
 
-      <div class="seg-head">
-        <span class="t">固定費</span><span class="s">毎月ほぼ同じ額</span>
-        <span class="sum" id="sum-fixed">¥0</span>
+      <div class="form-lock" id="form-lock">
+        まず住まいを選んでください。<br>選んだ形態に合わせて、入力する項目が変わります。
       </div>
-      <div id="fields-fixed"></div>
 
-      <div class="seg-head">
-        <span class="t">変動費</span><span class="s">使い方で増減する</span>
-        <span class="sum" id="sum-var">¥0</span>
-      </div>
-      <div id="fields-var"></div>
+      <div id="form-body" hidden>
+        <div class="seg-head">
+          <span class="t">収入</span><span class="s">月あたり</span>
+          <span class="sum" id="sum-income">¥0</span>
+        </div>
+        <div id="fields-income"></div>
 
-      <div style="margin-top:22px;">
-        <button class="btn-primary" id="btn-diagnose">診断する</button>
-        <p style="font-size:11.5px; color:var(--text-muted); text-align:center; margin:10px 0 0;">
-          わからない項目は空欄(0円)のままでOK。あとから変更できます。
-        </p>
+        <div class="seg-head">
+          <span class="t">固定費</span><span class="s">毎月ほぼ同じ額</span>
+          <span class="sum" id="sum-fixed">¥0</span>
+        </div>
+        <div id="fields-fixed"></div>
+
+        <div class="seg-head">
+          <span class="t">変動費</span><span class="s">使い方で増減する</span>
+          <span class="sum" id="sum-var">¥0</span>
+        </div>
+        <div id="fields-var"></div>
+
+        <div style="margin-top:24px;">
+          <button class="btn-primary" id="btn-diagnose">診断する</button>
+          <p style="font-size:11.5px; color:var(--ink-3); text-align:center; margin:10px 0 0;">
+            わからない項目は空欄(0円)のままでOK。あとから変更できます。
+          </p>
+        </div>
       </div>
     </div>
   </div>
 
-  <!-- ===== STEP 2: 診断結果(無料) ===== -->
+  <!-- ============ STEP2: 無料の診断結果 ============ -->
   <div id="screen-result" hidden>
-    <div class="card">
-      <div class="result-hero">
-        <div class="label">毎月、投資に回せる目安額</div>
-        <div class="amount"><span id="result-amount">0</span><small>円</small></div>
-        <div class="sub" id="result-rate"></div>
-      </div>
-      <div class="result-comment" id="result-comment"></div>
-      <div class="breakdown">
-        <div>収入<div class="v" id="bd-income">-</div></div>
-        <div>固定費<div class="v" id="bd-fixed">-</div></div>
-        <div>変動費<div class="v" id="bd-var">-</div></div>
+
+    <div class="hero-card reveal">
+      <div class="lb">毎月、投資に回せる目安額</div>
+      <div class="amt"><span id="result-amount">0</span><small>円</small></div>
+      <div class="rate" id="result-rate"></div>
+      <div class="split">
+        <div><div class="k">収入</div><div class="v" id="bd-income">-</div></div>
+        <div><div class="k">固定費</div><div class="v" id="bd-fixed">-</div></div>
+        <div><div class="k">変動費</div><div class="v" id="bd-var">-</div></div>
       </div>
     </div>
 
-    <!-- 気づき -->
-    <div class="card">
-      <h2 class="section-title">見落としがちな支出</h2>
+    <div class="card reveal">
+      <div class="result-comment" id="result-comment" style="margin-top:0;"></div>
+    </div>
+
+    <div class="card reveal">
+      <h2 class="section-title"><span class="ic">👀</span>見落としがちな支出</h2>
       <p class="section-sub">サブスク・カフェ/コンビニ・交遊費の合計です</p>
       <div id="insight-leak"></div>
       <div id="insight-top"></div>
     </div>
 
-    <!-- 同世代比較 -->
-    <div class="card">
-      <h2 class="section-title">同世代の平均と比べると</h2>
-      <p class="section-sub" id="cmp-sub">
-        濃いバーがあなた、縦線が大学生の平均的な金額(目安)です
-      </p>
-      <div id="cmp-list" style="margin-top:14px;"></div>
-      <p style="font-size:11px; color:var(--text-muted); margin:4px 0 0;">
+    <div class="card reveal">
+      <h2 class="section-title"><span class="ic">📊</span>同世代の平均と比べると</h2>
+      <p class="section-sub" id="cmp-sub">濃いバーがあなた、縦線が大学生の平均的な金額(目安)です</p>
+      <div id="cmp-list" style="margin-top:16px;"></div>
+      <p style="font-size:11px; color:var(--ink-3); margin:4px 0 0;">
         ※平均額はサンプル用の参考値です。実際の金額は地域や生活スタイルで大きく変わります。
       </p>
     </div>
 
-    <div class="cta-card">
-      <h3>で、この金額を積み立てたらどうなる?</h3>
-      <p>ここから先は「使う」ではなく「増やす」の話。無料診断でわかるのはここまでです。</p>
-      <div class="plan-compare">
-        <div class="plan-col plan-free">
-          <div class="ph">無料でわかったこと</div>
-          <ul>
-            <li>毎月の余裕額</li>
-            <li>使いすぎている項目</li>
-            <li>節約した場合の年間効果</li>
-          </ul>
-        </div>
-        <div class="plan-col plan-paid">
-          <div class="ph">有料でわかること</div>
-          <ul>
-            <li>10〜40年後の資産額</li>
-            <li>積立額を変えた比較</li>
-            <li>あなた向けの銘柄タイプ</li>
-            <li>診断結果の画像保存</li>
-          </ul>
-        </div>
+    <!-- リスク許容度診断(無料) -->
+    <div class="card reveal">
+      <h2 class="section-title"><span class="ic">🧭</span>投資タイプ診断</h2>
+      <p class="section-sub">投資したお金が一時的に減ったとき、あなたはどう感じますか?</p>
+      <div class="risk-options">
+        <button class="risk-btn" data-risk="stable">
+          <span class="em">🛡️</span>不安になる<span class="sub">減るのが怖い</span>
+        </button>
+        <button class="risk-btn" data-risk="balance">
+          <span class="em">⚖️</span>気にしない<span class="sub">ふつうでいい</span>
+        </button>
+        <button class="risk-btn" data-risk="active">
+          <span class="em">🚀</span>買い増したい<span class="sub">大きく増やしたい</span>
+        </button>
       </div>
-      <button class="btn-cta" id="btn-open-paywall">詳細シミュレーションを見る →</button>
+      <div id="type-card-wrap"></div>
     </div>
 
-    <button class="btn-text" id="btn-back-input">← 入力をやり直す</button>
+    <!-- 有料の壁 -->
+    <div id="paywall-zone" hidden>
+      <div class="locked">
+        <div class="locked-peek" aria-hidden="true">
+          <div class="peek-title">あなたにおすすめの投資信託</div>
+          <div class="peek-bar" id="peek-bar"></div>
+          <div id="peek-rows"></div>
+          <div class="peek-title" style="margin-top:18px;">20年後の資産シミュレーション</div>
+          <div class="peek-chart">
+            <i style="height:22%"></i><i style="height:31%"></i><i style="height:39%"></i>
+            <i style="height:50%"></i><i style="height:58%"></i><i style="height:71%"></i>
+            <i style="height:84%"></i><i style="height:100%"></i>
+          </div>
+        </div>
+
+        <div class="locked-overlay">
+          <div class="lockic">🔒</div>
+          <h3>診断はここまで。続きは有料です</h3>
+          <div class="sub">あなたの<strong id="lock-type">タイプ</strong>に合わせた、具体的なプランを用意しました</div>
+          <ul class="unlock-list">
+            <li>おすすめの投資信託を、商品名レベルで提案</li>
+            <li>NISA積立シミュレーション(金額・期間・利回り自由)</li>
+            <li>将来の目標から「毎月いくら必要か」を逆算</li>
+            <li>今月からやることリスト(5ステップ)</li>
+            <li>SNSに貼れる診断結果カードの画像保存</li>
+          </ul>
+          <div class="price-tag">
+            <span class="p">¥300</span>
+            <span class="u">買い切り</span>
+            <span class="b">追加課金なし</span>
+          </div>
+          <button class="btn-buy" id="btn-open-paywall">300円で全部見る →</button>
+          <div class="buy-note">※このアプリではまだ実際の決済は行われません</div>
+        </div>
+      </div>
+    </div>
+
+    <button class="btn-text" id="btn-back-input" style="display:block; margin:0 auto;">← 入力をやり直す</button>
   </div>
 
-  <!-- ===== STEP 3: 有料シミュレーション ===== -->
+  <!-- ============ STEP3: 有料(タブ切り替え) ============ -->
   <div id="screen-premium" hidden>
 
-    <!-- 3-1 シミュレーション -->
-    <div class="card">
-      <span class="badge-premium">詳細シミュレーション</span>
-      <h2 class="section-title">NISA積立シミュレーション</h2>
-      <p class="section-sub">金額・期間を動かすとグラフがその場で変わります</p>
-
-      <div class="ctrl">
-        <div class="ctrl-head">
-          <label for="sim-monthly-range">毎月の積立額</label>
-          <span class="val" id="sim-monthly-label">¥0</span>
-        </div>
-        <input type="range" id="sim-monthly-range" min="0" max="100000" step="1000" value="10000">
-        <div class="ctrl-scale"><span>0円</span><span>10万円</span></div>
-        <div class="input-yen" style="margin-top:8px;">
-          <input type="text" inputmode="numeric" autocomplete="off" id="sim-monthly" value="10,000">
-        </div>
-      </div>
-
-      <div class="ctrl">
-        <div class="ctrl-head">
-          <label for="sim-years-range">積立期間</label>
-          <span class="val" id="sim-years-label">20年</span>
-        </div>
-        <input type="range" id="sim-years-range" min="1" max="40" step="1" value="20">
-        <div class="ctrl-scale"><span>1年</span><span>40年</span></div>
-      </div>
-
-      <div class="ctrl">
-        <div class="ctrl-head">
-          <label>基準にする年利回り</label>
-          <span class="val" id="sim-rate-label">5%</span>
-        </div>
-        <div class="rate-tabs">
-          <button class="rate-tab" data-rate="3">年3%<br><span style="font-weight:400;font-size:11px;">堅め</span></button>
-          <button class="rate-tab selected" data-rate="5">年5%<br><span style="font-weight:400;font-size:11px;">標準</span></button>
-          <button class="rate-tab" data-rate="7">年7%<br><span style="font-weight:400;font-size:11px;">強気</span></button>
-        </div>
-        <div class="toggle-row">
-          <input type="checkbox" id="cmp-mode">
-          <label for="cmp-mode">3%・5%・7%を並べて比較する</label>
-        </div>
-      </div>
-
-      <div class="chart-box"><canvas id="sim-chart"></canvas></div>
-      <div class="legend" id="chart-legend"></div>
-
-      <div class="breakdown" style="margin-top:18px;">
-        <div><span id="lab-fv">20年後</span>の資産<div class="v" id="fv-main">-</div></div>
-        <div>うち運用益<div class="v" id="fv-gain">-</div></div>
-        <div>累計投資額<div class="v" id="fv-principal">-</div></div>
-      </div>
-
-      <button class="btn-text" id="btn-toggle-table" style="display:block; margin: 12px auto 0;">表で見る ▾</button>
-      <div id="table-wrap" hidden></div>
+    <div class="tabbar" id="tabbar">
+      <button class="tab selected" data-tab="fund"><span class="ti">💼</span>投資信託</button>
+      <button class="tab" data-tab="sim"><span class="ti">📈</span>積立試算</button>
+      <button class="tab" data-tab="goal"><span class="ti">🎯</span>目標逆算</button>
+      <button class="tab" data-tab="todo"><span class="ti">✅</span>やること</button>
+      <button class="tab" data-tab="share"><span class="ti">📱</span>シェア</button>
     </div>
 
-    <!-- 3-2 +1,000円比較 -->
-    <div class="card">
-      <h2 class="section-title">あと少し積み立てると、どれだけ変わる?</h2>
-      <p class="section-sub" id="boost-sub">現在の設定と比べた、期間終了時点の差額です</p>
-      <div class="boost-list" id="boost-list"></div>
-      <p style="font-size:11.5px; color:var(--text-muted); margin:6px 0 0;" id="boost-note"></p>
+    <!-- タブ1: 投資信託 -->
+    <div class="tab-panel" data-panel="fund">
+      <div class="card">
+        <span class="premium-flag">★ PREMIUM</span>
+        <h2 class="section-title"><span class="ic">💼</span>あなたにおすすめの投資信託</h2>
+        <p class="section-sub" id="port-sub"></p>
+        <div class="port-bar" id="port-bar"></div>
+        <div id="port-list"></div>
+        <div class="alloc-comment" id="port-comment"></div>
+      </div>
     </div>
 
-    <!-- 3-3 リスク許容度 → ポートフォリオ -->
-    <div class="card">
-      <h2 class="section-title">あなたに合う投資先のタイプ</h2>
-      <p class="section-sub">3つのうち、いちばん近いものを選んでください</p>
-      <div class="risk-options">
-        <button class="risk-btn" data-risk="stable">安定重視<span class="sub">減るのが怖い</span></button>
-        <button class="risk-btn" data-risk="balance">バランス<span class="sub">ふつうでいい</span></button>
-        <button class="risk-btn" data-risk="active">積極的<span class="sub">大きく増やしたい</span></button>
-      </div>
+    <!-- タブ2: 積立試算 -->
+    <div class="tab-panel" data-panel="sim" hidden>
+      <div class="card">
+        <span class="premium-flag">★ PREMIUM</span>
+        <h2 class="section-title"><span class="ic">📈</span>NISA積立シミュレーション</h2>
+        <p class="section-sub">金額・期間を動かすとグラフがその場で変わります</p>
 
-      <div class="port-bar" id="port-bar" hidden></div>
-      <div class="port-list" id="port-list" hidden></div>
-      <div class="alloc-comment" id="port-comment" hidden></div>
-    </div>
-
-    <!-- 3-4 行動ガイド -->
-    <div class="card">
-      <h2 class="section-title">今月から始めるなら、これだけ</h2>
-      <p class="section-sub" id="todo-sub">選んだタイプに合わせた手順です。終わったらチェックを付けてください</p>
-
-      <div class="progress-wrap">
-        <div class="progress"><div class="progress-fill" id="todo-fill"></div></div>
-        <span class="progress-label" id="todo-label">0 / 5</span>
-      </div>
-
-      <div id="todo-list"></div>
-      <div class="done-banner" id="todo-done" hidden>
-        🎉 これで投資デビュー完了です。あとは続けるだけ。
-      </div>
-      <p style="font-size:11px; color:var(--text-muted); margin:12px 0 0;">
-        チェックの状態はこのブラウザに保存されます(他の端末とは共有されません)。
-      </p>
-    </div>
-
-    <!-- 3-5 なりたい将来から逆算 -->
-    <div class="card">
-      <h2 class="section-title">「なりたい将来」から逆算する</h2>
-      <p class="section-sub">目標を選ぶと、毎月いくら積み立てれば届くかを計算します</p>
-
-      <div class="goal-chips" id="goal-chips"></div>
-
-      <div class="ctrl">
-        <div class="ctrl-head">
-          <label for="goal-amount">目標金額</label>
-          <span class="val" id="goal-amount-label">¥0</span>
+        <div class="ctrl">
+          <div class="ctrl-head">
+            <label for="sim-monthly-range">毎月の積立額</label>
+            <span class="val" id="sim-monthly-label">¥0</span>
+          </div>
+          <input type="range" id="sim-monthly-range" min="0" max="100000" step="1000" value="10000">
+          <div class="ctrl-scale"><span>0円</span><span>10万円</span></div>
+          <div class="input-yen" style="margin-top:8px;">
+            <input type="text" inputmode="numeric" autocomplete="off" id="sim-monthly" value="10,000">
+          </div>
         </div>
-        <div class="input-yen">
-          <input type="text" inputmode="numeric" autocomplete="off" id="goal-amount" value="2,500,000">
+
+        <div class="ctrl">
+          <div class="ctrl-head">
+            <label for="sim-years-range">積立期間</label>
+            <span class="val" id="sim-years-label">20年</span>
+          </div>
+          <input type="range" id="sim-years-range" min="1" max="40" step="1" value="20">
+          <div class="ctrl-scale"><span>1年</span><span>40年</span></div>
         </div>
+
+        <div class="ctrl">
+          <div class="ctrl-head">
+            <label>基準にする年利回り</label>
+            <span class="val" id="sim-rate-label">5%</span>
+          </div>
+          <div class="rate-tabs">
+            <button class="rate-tab" data-rate="3">年3%<span>堅め</span></button>
+            <button class="rate-tab selected" data-rate="5">年5%<span>標準</span></button>
+            <button class="rate-tab" data-rate="7">年7%<span>強気</span></button>
+          </div>
+          <div class="toggle-row">
+            <input type="checkbox" id="cmp-mode">
+            <label for="cmp-mode">3%・5%・7%を並べて比較する</label>
+          </div>
+        </div>
+
+        <div class="chart-box"><canvas id="sim-chart"></canvas></div>
+        <div class="legend" id="chart-legend"></div>
+
+        <div class="stat-row">
+          <div><div class="k"><span id="lab-fv">20年後</span>の資産</div><div class="v" id="fv-main">-</div></div>
+          <div><div class="k">うち運用益</div><div class="v" id="fv-gain">-</div></div>
+          <div><div class="k">累計投資額</div><div class="v" id="fv-principal">-</div></div>
+        </div>
+
+        <button class="btn-text" id="btn-toggle-table" style="display:block; margin:12px auto 0;">表で見る ▾</button>
+        <div id="table-wrap" hidden></div>
       </div>
 
-      <div class="ctrl">
-        <div class="ctrl-head">
-          <label for="goal-years">達成したい時期</label>
-          <span class="val" id="goal-years-label">8年後</span>
-        </div>
-        <input type="range" id="goal-years" min="1" max="40" step="1" value="8">
-        <div class="ctrl-scale"><span>1年後</span><span>40年後</span></div>
+      <div class="card">
+        <h2 class="section-title"><span class="ic">➕</span>あと少し積み立てると?</h2>
+        <p class="section-sub" id="boost-sub"></p>
+        <div id="boost-list" style="margin-top:14px;"></div>
+        <p style="font-size:11.5px; color:var(--ink-3); margin:8px 0 0;" id="boost-note"></p>
       </div>
-
-      <div id="goal-result"></div>
     </div>
 
-    <!-- 3-6 保存 -->
-    <div class="card">
-      <h2 class="section-title">診断結果を保存する</h2>
-      <p class="section-sub">画像(PNG)で保存できます。そのままSNSや友達に送れます</p>
-      <button class="btn-primary" id="btn-make-card" style="margin-top:12px;">結果カードを作る</button>
-      <img class="save-preview" id="share-preview" alt="診断結果カードのプレビュー" hidden>
-      <button class="btn-outline" id="btn-download-card" style="margin-top:12px;" hidden>画像をダウンロード</button>
-      <canvas id="share-canvas" width="1080" height="1440" hidden></canvas>
+    <!-- タブ3: 目標逆算 -->
+    <div class="tab-panel" data-panel="goal" hidden>
+      <div class="card">
+        <span class="premium-flag">★ PREMIUM</span>
+        <h2 class="section-title"><span class="ic">🎯</span>「なりたい将来」から逆算する</h2>
+        <p class="section-sub">目標を選ぶと、毎月いくら積み立てれば届くかを計算します</p>
+
+        <div class="goal-chips" id="goal-chips"></div>
+
+        <div class="ctrl">
+          <div class="ctrl-head">
+            <label for="goal-amount">目標金額</label>
+            <span class="val" id="goal-amount-label">¥0</span>
+          </div>
+          <div class="input-yen">
+            <input type="text" inputmode="numeric" autocomplete="off" id="goal-amount" value="2,500,000">
+          </div>
+        </div>
+
+        <div class="ctrl">
+          <div class="ctrl-head">
+            <label for="goal-years">達成したい時期</label>
+            <span class="val" id="goal-years-label">8年後</span>
+          </div>
+          <input type="range" id="goal-years" min="1" max="40" step="1" value="8">
+          <div class="ctrl-scale"><span>1年後</span><span>40年後</span></div>
+        </div>
+
+        <div id="goal-result"></div>
+      </div>
     </div>
 
-    <button class="btn-text" id="btn-back-result">← 無料診断の結果に戻る</button>
+    <!-- タブ4: やることリスト -->
+    <div class="tab-panel" data-panel="todo" hidden>
+      <div class="card">
+        <span class="premium-flag">★ PREMIUM</span>
+        <h2 class="section-title"><span class="ic">✅</span>今月からやることリスト</h2>
+        <p class="section-sub" id="todo-sub"></p>
+
+        <div class="progress-wrap">
+          <div class="progress"><div class="progress-fill" id="todo-fill"></div></div>
+          <span class="progress-label" id="todo-label">0 / 5</span>
+        </div>
+
+        <div id="todo-list"></div>
+        <div class="done-banner" id="todo-done" hidden>🎉 これで投資デビュー完了です。あとは続けるだけ。</div>
+        <p style="font-size:11px; color:var(--ink-3); margin:14px 0 0;">
+          チェックの状態はこのブラウザに保存されます(他の端末とは共有されません)。
+        </p>
+      </div>
+    </div>
+
+    <!-- タブ5: シェア -->
+    <div class="tab-panel" data-panel="share" hidden>
+      <div class="card">
+        <span class="premium-flag">★ PREMIUM</span>
+        <h2 class="section-title"><span class="ic">📱</span>診断結果をシェア</h2>
+        <p class="section-sub">Instagramのストーリーズに貼れる縦長(9:16)の画像を作ります</p>
+
+        <button class="btn-primary" id="btn-make-card" style="margin-top:14px;">結果カードを作る</button>
+
+        <div class="share-frame" id="share-frame" hidden>
+          <img class="share-preview" id="share-preview" alt="診断結果カードのプレビュー">
+          <div class="share-hint">
+            画像は 1080 × 1920px。ストーリーズにそのまま貼れるサイズです。<br>
+            スマホの場合は画像を長押しして保存もできます。
+          </div>
+        </div>
+
+        <button class="btn-outline" id="btn-download-card" style="margin-top:12px;" hidden>画像をダウンロード</button>
+        <canvas id="share-canvas" width="1080" height="1920" hidden></canvas>
+      </div>
+    </div>
+
+    <button class="btn-text" id="btn-back-result" style="display:block; margin:0 auto;">← 診断結果に戻る</button>
   </div>
 
   <footer class="foot">
@@ -697,18 +997,19 @@
   </footer>
 </div>
 
-<!-- 課金導線モーダル(ダミー) -->
+<!-- 課金モーダル(ダミー) -->
 <div class="modal-overlay" id="paywall-modal" hidden>
   <div class="modal">
-    <h3>詳細シミュレーション</h3>
-    <div class="price">¥480 (買い切り) ※このアプリではまだ実際の決済は行われません</div>
-    <ul>
-      <li>積立額・期間を自由に変えられるリアルタイム試算</li>
-      <li>「あと月1,000円」で将来いくら変わるかの比較</li>
-      <li>リスク許容度別の、テーマ分散ポートフォリオ提案</li>
-      <li>診断結果カードの画像ダウンロード</li>
+    <h3>詳細プランを見る</h3>
+    <div class="price">買い切り ¥300 / 追加課金はありません</div>
+    <ul class="unlock-list" style="margin-bottom:20px;">
+      <li>おすすめの投資信託を、商品名レベルで提案</li>
+      <li>NISA積立シミュレーション(金額・期間・利回り自由)</li>
+      <li>将来の目標から「毎月いくら必要か」を逆算</li>
+      <li>今月からやることリスト(5ステップ)</li>
+      <li>SNS用の診断結果カード画像</li>
     </ul>
-    <button class="btn-cta" id="btn-fake-pay" style="width:100%; margin-bottom:10px;">購入する(仮) →</button>
+    <button class="btn-buy" id="btn-fake-pay" style="margin-bottom:10px;">¥300 を支払う(仮) →</button>
     <button class="btn-text" id="btn-close-modal" style="display:block; margin:0 auto;">閉じる</button>
     <div class="demo-note">ここに将来 Stripe 等の決済ボタンが入ります</div>
   </div>
