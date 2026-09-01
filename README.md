@@ -5,6 +5,25 @@
 **無料は「気づきと診断」、有料(300円買い切り)は「具体的なプラン」**という
 はっきりした線引きで作っている。
 
+## 公開URL
+
+**https://haru-1025.github.io/toshi-debut-shindan/**
+
+GitHub Pages で公開している(無料)。`main` ブランチに push すると
+1〜2分で自動的に公開版が更新される。
+
+```powershell
+cd "toshi-debut-shindan"
+git add -A
+git commit -m "変更内容"
+git push
+```
+
+将来 Stripe の決済を入れる場合、GitHub Pages は静的ファイルしか置けないため
+サーバー側の処理が書けない。そのときは同じ GitHub リポジトリを
+**Netlify** か **Cloudflare Pages** につなぎ直せばよい(どちらも無料枠で
+サーバー側の関数が使え、コードの作り直しは不要)。
+
 ## 使い方(起動方法)
 
 このフォルダの `index.html` をダブルクリックしてブラウザで開くだけで動く。

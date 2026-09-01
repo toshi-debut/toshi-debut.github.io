@@ -1275,7 +1275,7 @@ function renderTypeAvg() {
 // file:// で開いている場合は端末のパス(ユーザー名を含む)が漏れるので使わない。
 // ============================================================
 const SHARE_SITE = {
-  url: '',                       // 例: 'https://toshi-debut.vercel.app'
+  url: 'https://haru-1025.github.io/toshi-debut-shindan/',
   hashtag: '投資デビュー診断',
 };
 
