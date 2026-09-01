@@ -224,8 +224,11 @@ const HEADINGS = {
   'screen-premium': ['あなたの<em>投資プラン</em>', 'タブを切り替えて、必要なところから見てください'],
 };
 
+let currentScreen = 'screen-intro';
+
 function goScreen(id, stepNo) {
   SCREENS.forEach((s) => { $(s).hidden = s !== id; });
+  currentScreen = id;
 
   // 導入画面は専用のビジュアルを使うので、共通ヘッダーは出さない
   const isIntro = id === 'screen-intro';
@@ -242,6 +245,7 @@ function goScreen(id, stepNo) {
     });
   }
 
+  renderProgress();
   replayReveal($(id));
   window.scrollTo({ top: 0, behavior: reduceMotion() ? 'auto' : 'smooth' });
 }
@@ -270,7 +274,7 @@ function fieldHtml(it) {
 
 function bindField(it) {
   const el = $(it.id);
-  bindMoney(el, (n) => { values[it.id] = n; updateSums(); });
+  bindMoney(el, (n) => { values[it.id] = n; updateSums(); saveProgress(); });
   onEnterCommit(el, () => diagnose());
 }
 
@@ -289,6 +293,8 @@ function setLiving(next) {
   $('form-lock').hidden = true;
   $('form-body').hidden = false;
   renderFields();
+  renderProgress();
+  saveProgress();
 }
 
 document.querySelectorAll('.choice-btn').forEach((btn) => {
@@ -342,6 +348,8 @@ function diagnose() {
 
   setMonthly(Math.max(1000, Math.round(d.surplus / 1000) * 1000));
 
+  stage = 'result';
+  saveProgress();
   goScreen('screen-result', 2);
   countUp($('result-amount'), d.surplus, 900);
 }
@@ -452,7 +460,11 @@ function renderComparison(d) {
 }
 
 $('btn-diagnose').addEventListener('click', diagnose);
-$('btn-back-input').addEventListener('click', () => goScreen('screen-input', 1));
+$('btn-back-input').addEventListener('click', () => {
+  stage = 'input';
+  saveProgress();
+  goScreen('screen-input', 1);
+});
 
 // ============================================================
 // 診断タイプ(無料で見せるところ)とポートフォリオ(有料)
@@ -736,6 +748,8 @@ function answerQuiz(optIndex) {
     if (quizIndex < QUIZ.length - 1) {
       quizIndex++;
       renderQuiz();
+      renderProgress();
+      saveProgress();       // 1問ごとに保存しておく
     } else {
       finishQuiz();
     }
@@ -749,6 +763,8 @@ function finishQuiz() {
   renderQuiz();
   renderTypeCard(selectedRisk, total);
   if (paid) renderPortfolio(selectedRisk);   // 購入後に受け直したら有料側も作り直す
+  renderProgress();
+  clearProgress();          // 診断が完了したので、途中データはもう不要
 }
 
 $('quiz-body').addEventListener('click', (e) => {
@@ -757,7 +773,7 @@ $('quiz-body').addEventListener('click', (e) => {
 });
 
 $('btn-quiz-back').addEventListener('click', () => {
-  if (quizIndex > 0) { quizIndex--; renderQuiz(); }
+  if (quizIndex > 0) { quizIndex--; renderQuiz(); renderProgress(); saveProgress(); }
 });
 
 $('btn-quiz-retry').addEventListener('click', () => {
@@ -770,6 +786,8 @@ $('btn-quiz-retry').addEventListener('click', () => {
   $('reviews-card').hidden = true;
   $('paywall-zone').hidden = true;
   renderQuiz();
+  renderProgress();
+  saveProgress();           // 受け直しはやり直しなので、また途中データとして保存する
   $('quiz-card').scrollIntoView?.({ behavior: reduceMotion() ? 'auto' : 'smooth', block: 'start' });
 });
 
@@ -843,7 +861,9 @@ const FAQ_ITEMS = [
     q: '診断結果は保存できますか?',
     a: '「シェア」タブから、診断結果のカードを画像(PNG)として保存できます。' +
        'サイズは1080×1920pxで、Instagramのストーリーズにそのまま貼れます。' +
-       'ただし入力した金額そのものはブラウザを閉じると消えるので、あとから見返したい場合は画像を保存しておいてください。',
+       'また、診断の途中でブラウザを閉じても、入力内容はこの端末の中に自動保存されているので、' +
+       '次に開いたときに「続きから再開しますか?」と聞かれます(診断が終わると保存データは消えます)。' +
+       'ただし別のスマホやPCには引き継がれないので、あとから見返したい場合は画像を保存しておいてください。',
   },
   {
     q: '投資の知識が全くなくても大丈夫ですか?',
@@ -1614,6 +1634,129 @@ $('btn-download-card').addEventListener('click', () => {
 });
 
 // ============================================================
+// 途中データの自動保存と再開(離脱防止)
+//
+// localStorage = ブラウザの中にある小さな保存領域。サーバーには送られず、
+// この端末のこのブラウザにだけ残る(別のスマホやPCには引き継がれない)。
+// 保存するのは「収支入力の内容」と「5問の回答」だけ。
+// 診断が完了(タイプ確定)したら、その時点で保存データは消す。
+// ============================================================
+const SAVE_KEY = 'toshi-debut-progress';
+const SAVE_VERSION = 1;
+let saveEnabled = true;   // 復元中は保存を止める(途中の状態で上書きしないため)
+let stage = 'input';      // 'input'(収支入力中) / 'result'(診断中)
+
+function saveProgress() {
+  if (!saveEnabled) return;
+  try {
+    localStorage.setItem(SAVE_KEY, JSON.stringify({
+      v: SAVE_VERSION,
+      at: Date.now(),
+      stage, living, values, quizIndex,
+      quizAnswers: quizAnswers.slice(),
+    }));
+  } catch (e) { /* プライベートモード等で保存できない場合は何もしない */ }
+}
+
+function loadProgress() {
+  try {
+    const raw = localStorage.getItem(SAVE_KEY);
+    if (!raw) return null;
+    const s = JSON.parse(raw);
+    if (!s || s.v !== SAVE_VERSION || !s.living) return null;
+    // すでに5問すべて答え終わっているデータは「完了済み」なので復元しない
+    if (Array.isArray(s.quizAnswers) && s.quizAnswers.every((a) => a !== null)) return null;
+    return s;
+  } catch (e) { return null; }
+}
+
+function clearProgress() {
+  try { localStorage.removeItem(SAVE_KEY); } catch (e) { }
+}
+
+// 保存データから「どこまで進んだか」を組み立てる(再開ダイアログに出す)
+function progressSummary(s) {
+  const answered = (s.quizAnswers || []).filter((a) => a !== null).length;
+  const filled = Object.keys(s.values || {}).filter((k) => s.values[k] > 0).length;
+  const rows = [
+    ['🏠', '住まい', LIVING_LABEL[s.living] || '—'],
+    ['📝', '入力した項目', `${filled}件`],
+    ['🧭', '診断の回答', answered === 0 ? 'まだ' : `${answered} / ${QUIZ.length}問`],
+  ];
+  return rows.map(([k, label, v]) =>
+    `<div class="ri"><span class="k">${k}</span><span>${label}</span><strong style="margin-left:auto">${v}</strong></div>`).join('');
+}
+
+function whenText(at) {
+  const min = Math.floor((Date.now() - at) / 60000);
+  if (min < 1) return 'さきほどの入力内容が残っています';
+  if (min < 60) return `${min}分前の入力内容が残っています`;
+  const h = Math.floor(min / 60);
+  if (h < 24) return `${h}時間前の入力内容が残っています`;
+  return `${Math.floor(h / 24)}日前の入力内容が残っています`;
+}
+
+function restoreProgress(s) {
+  saveEnabled = false;
+  Object.keys(values).forEach((k) => { values[k] = 0; });
+  Object.assign(values, s.values || {});
+  (s.quizAnswers || []).forEach((a, i) => { quizAnswers[i] = a; });
+  quizIndex = Math.min(s.quizIndex || 0, QUIZ.length - 1);
+  setLiving(s.living);                 // 住まいに合った入力欄を金額つきで作り直す
+  saveEnabled = true;
+
+  if (s.stage === 'result') {
+    diagnose();                        // 診断結果の画面を組み立ててそこへ移動する
+    renderQuiz();                      // 途中まで答えた設問から再開する
+  } else {
+    goScreen('screen-input', 1);
+  }
+  saveProgress();
+}
+
+// --- 進捗の常時表示 ---
+// 住まいの選択=10% / 収支の診断=40% / 5問の回答=各12% で 100%
+function progressState() {
+  const answered = quizAnswers.filter((a) => a !== null).length;
+  if (currentScreen === 'screen-premium') return { pct: 100, label: '💎 詳細プラン' };
+  if (currentScreen === 'screen-result') {
+    if (answered >= QUIZ.length) return { pct: 100, label: '✅ 診断完了' };
+    return { pct: 40 + answered * 12, label: `🧭 診断中(${answered + 1}/${QUIZ.length}問)` };
+  }
+  if (!living) return { pct: 0, label: '📝 住まいを選ぶ' };
+  return { pct: 10, label: '📝 収支を入力中' };
+}
+
+function renderProgress() {
+  const onIntro = currentScreen === 'screen-intro';
+  $('progress-strip').hidden = onIntro;
+  if (onIntro) return;
+  const p = progressState();
+  $('progress-label').textContent = p.label;
+  $('progress-fill').style.width = p.pct + '%';
+  $('progress-pct').textContent = p.pct + '%';
+}
+
+// --- 再開ダイアログ ---
+function askResume() {
+  const s = loadProgress();
+  if (!s) return;
+  $('resume-when').textContent = whenText(s.at);
+  $('resume-info').innerHTML = progressSummary(s);
+  $('resume-modal').hidden = false;
+
+  $('btn-resume-yes').addEventListener('click', () => {
+    $('resume-modal').hidden = true;
+    restoreProgress(s);
+  }, { once: true });
+
+  $('btn-resume-no').addEventListener('click', () => {
+    $('resume-modal').hidden = true;
+    clearProgress();               // 最初からやり直すので保存データは捨てる
+  }, { once: true });
+}
+
+// ============================================================
 // 初期表示
 // ============================================================
 setMonthly(10000);
@@ -1621,3 +1764,5 @@ renderTodo();
 renderGoal();
 renderQuiz();
 renderCounter();
+renderProgress();
+askResume();

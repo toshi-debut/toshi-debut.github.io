@@ -530,6 +530,47 @@ p.section-sub { font-size: 12.5px; color: var(--ink-3); margin: 0 0 4px; line-he
 .modal .price { font-size: 12.5px; color: var(--ink-3); margin-bottom: 16px; }
 .modal .demo-note { font-size: 11px; color: var(--ink-3); text-align: center; margin-top: 12px; }
 
+/* 再開ダイアログの中の「前回どこまで進んだか」 */
+.resume-info {
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-md);
+  padding: 14px 16px; margin-bottom: 18px;
+}
+.resume-info .ri {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 13px; color: var(--ink-2); padding: 4px 0;
+}
+.resume-info .ri .k { font-size: 15px; }
+.resume-info .ri strong { color: var(--ink); font-weight: 800; }
+
+/* ---------- 進捗の常時表示 ---------- */
+.progress-strip {
+  position: sticky; top: 0; z-index: 40;
+  display: flex; align-items: center; gap: 10px;
+  margin: 0 -4px 12px; padding: 9px 14px;
+  background: color-mix(in srgb, var(--card) 92%, transparent);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--line); border-radius: 999px;
+  box-shadow: var(--shadow-1);
+}
+.progress-strip .pl {
+  font-size: 12px; font-weight: 800; color: var(--navy); white-space: nowrap;
+}
+.progress-strip .ptrack {
+  flex: 1; height: 6px; border-radius: 999px; background: var(--navy-soft); overflow: hidden;
+}
+.progress-strip .pfill {
+  height: 100%; border-radius: 999px; width: 0%;
+  background: linear-gradient(90deg, var(--navy) 0%, var(--mint) 100%);
+  transition: width .4s cubic-bezier(.22,.9,.3,1);
+}
+.progress-strip .ppct {
+  font-size: 11.5px; font-weight: 800; color: var(--ink-3);
+  font-variant-numeric: tabular-nums; min-width: 34px; text-align: right;
+}
+@media (prefers-reduced-motion: reduce) {
+  .progress-strip .pfill { transition: none; }
+}
+
 /* ---------- 有料:タブ ---------- */
 .tabbar {
   position: sticky; top: 0; z-index: 30;
@@ -860,7 +901,7 @@ footer.foot {
 
       <div class="value-badge reveal">
         <span class="vi">💰</span>
-        <span>投資タイプの判定まで<strong>すべて無料</strong>。登録もログインも不要で、入力した内容は端末の外に出ません。</span>
+        <span>投資タイプの判定まで<strong>すべて無料</strong>。登録もログインも不要で、入力した内容はこの端末の中だけに保存されます。</span>
       </div>
 
       <div class="intro-points reveal">
@@ -880,9 +921,16 @@ footer.foot {
 
       <div class="reveal">
         <button class="btn-primary" id="btn-start">診断をはじめる →</button>
-        <div class="intro-meta">所要時間 約3分 ／ 登録・ログイン不要 ／ 入力内容は端末の外に出ません</div>
+        <div class="intro-meta">所要時間 約3分 ／ 登録・ログイン不要 ／ 途中で閉じても続きから再開できます</div>
       </div>
     </div>
+  </div>
+
+  <!-- 進捗の常時表示(入力〜診断のあいだ、スクロールしても上に残る) -->
+  <div class="progress-strip" id="progress-strip" hidden>
+    <span class="pl" id="progress-label">📝 収支を入力中</span>
+    <div class="ptrack"><div class="pfill" id="progress-fill"></div></div>
+    <span class="ppct" id="progress-pct">0%</span>
   </div>
 
   <header class="top" id="app-header" hidden>
@@ -1224,6 +1272,18 @@ footer.foot {
 </div>
 
 <!-- 課金モーダル(ダミー) -->
+<!-- 前回の続きから再開するか聞くダイアログ -->
+<div class="modal-overlay" id="resume-modal" hidden>
+  <div class="modal">
+    <h3>前回の続きから再開しますか?</h3>
+    <div class="price" id="resume-when">前回の入力内容がこの端末に残っています</div>
+    <div class="resume-info" id="resume-info"></div>
+    <button class="btn-buy" id="btn-resume-yes" style="margin-bottom:10px;">はい、続きから再開する →</button>
+    <button class="btn-text" id="btn-resume-no" style="display:block; margin:0 auto;">いいえ、最初からやり直す</button>
+    <div class="demo-note">保存されているのはこの端末のブラウザの中だけです</div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="paywall-modal" hidden>
   <div class="modal">
     <h3>詳細プランを見る</h3>
