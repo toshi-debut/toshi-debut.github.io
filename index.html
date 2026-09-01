@@ -3,7 +3,16 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>投資デビュー診断</title>
+<title>投資デビュー診断 | 大学生のための投資タイプ診断</title>
+<meta name="description" content="バイト代と支出を入れるだけ。3分であなたの投資タイプ(全9種)と、毎月投資に回せる金額がわかる大学生向けの診断ツールです。">
+<meta name="theme-color" content="#123a5e">
+<!-- SNSで共有されたときの見え方 -->
+<meta property="og:type" content="website">
+<meta property="og:title" content="投資デビュー診断 | 大学生のための投資タイプ診断">
+<meta property="og:description" content="バイト代と支出を入れるだけ。3分であなたの投資タイプ(全9種)と、毎月投資に回せる金額がわかります。">
+<meta name="twitter:card" content="summary">
+<!-- タブに出るアイコン(外部ファイルを増やさないよう SVG を直接埋め込む) -->
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%23123a5e'/%3E%3Cpath d='M22 68 L42 48 L56 62 L78 34' stroke='%230fa36b' stroke-width='11' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
 <style>
 /* =========================================================
    デザイントークン(白ベース固定。OSのダークモードには追従しない)
@@ -542,6 +551,83 @@ p.section-sub { font-size: 12.5px; color: var(--ink-3); margin: 0 0 4px; line-he
 .resume-info .ri .k { font-size: 15px; }
 .resume-info .ri strong { color: var(--ink); font-weight: 800; }
 
+/* ---------- 入力エラー ---------- */
+.form-alert {
+  display: flex; align-items: flex-start; gap: 10px;
+  background: color-mix(in srgb, var(--bad) 8%, #fff);
+  border: 1px solid color-mix(in srgb, var(--bad) 34%, #fff);
+  border-radius: var(--r-md); padding: 13px 15px; margin-bottom: 14px;
+  font-size: 13px; line-height: 1.7; color: var(--ink);
+  animation: riseIn .24s cubic-bezier(.22,.9,.3,1) both;
+}
+.form-alert .ai { font-size: 16px; line-height: 1.4; }
+.form-alert strong { color: var(--bad); font-weight: 800; }
+
+/* ---------- 生活防衛資金 ---------- */
+.buffer-split { display: flex; gap: 10px; margin-top: 16px; }
+.buffer-split > div {
+  flex: 1; background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--r-md); padding: 13px 14px; text-align: center;
+}
+.buffer-split .k { font-size: 11px; color: var(--ink-3); font-weight: 700; }
+.buffer-split .v {
+  font-size: 19px; font-weight: 800; margin-top: 4px; font-variant-numeric: tabular-nums;
+}
+.buffer-split .v small { font-size: 12px; font-weight: 700; margin-left: 1px; }
+.buffer-split .s { font-size: 10.5px; color: var(--ink-3); margin-top: 3px; }
+.buffer-split .now .v { color: var(--mint-deep); }
+.buffer-split .goal .v { color: var(--navy); }
+.buffer-note {
+  font-size: 12.5px; line-height: 1.8; color: var(--ink-2); margin-top: 14px;
+}
+
+/* ---------- グラフが出せなかったとき ---------- */
+.chart-fallback {
+  position: absolute; inset: 0; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 6px; text-align: center;
+  padding: 20px; background: var(--surface); border-radius: var(--r-md);
+}
+.chart-fallback .fi { font-size: 28px; }
+.chart-fallback strong { font-size: 14px; font-weight: 800; color: var(--ink); }
+.chart-fallback span:last-child { font-size: 12px; line-height: 1.7; color: var(--ink-3); max-width: 380px; }
+
+/* ---------- 5問の回答の振り返り ---------- */
+.answers { margin-top: 14px; }
+.answers > summary {
+  list-style: none; cursor: pointer; text-align: center;
+  font-size: 12.5px; font-weight: 700; color: var(--navy); padding: 8px;
+}
+.answers > summary::-webkit-details-marker { display: none; }
+.answers[open] > summary { color: var(--ink-3); }
+.answer-row {
+  display: flex; gap: 10px; align-items: flex-start;
+  padding: 11px 0; border-top: 1px solid var(--line); font-size: 12.5px;
+}
+.answer-row .qn {
+  flex: none; width: 26px; height: 26px; border-radius: 8px;
+  background: var(--navy-soft); color: var(--navy);
+  font-size: 11px; font-weight: 800;
+  display: flex; align-items: center; justify-content: center;
+}
+.answer-row .qt { color: var(--ink-3); line-height: 1.6; }
+.answer-row .at { color: var(--ink); font-weight: 700; margin-top: 3px; }
+.answer-row .sc {
+  margin-left: auto; flex: none; font-size: 11px; font-weight: 800;
+  color: var(--navy); background: var(--navy-soft);
+  padding: 3px 8px; border-radius: 999px; white-space: nowrap;
+}
+
+/* ---------- クイズのキー操作ヒント ---------- */
+.quiz-hint {
+  font-size: 11px; color: var(--ink-3); text-align: center; margin: 12px 0 0;
+}
+.quiz-hint kbd {
+  font-family: inherit; font-size: 10.5px; font-weight: 800; color: var(--ink-2);
+  background: var(--surface); border: 1px solid var(--line);
+  border-bottom-width: 2px; border-radius: 5px; padding: 1px 6px; margin: 0 1px;
+}
+@media (hover: none) { .quiz-hint { display: none; } }
+
 /* ---------- 進捗の常時表示 ---------- */
 .progress-strip {
   position: sticky; top: 0; z-index: 40;
@@ -915,7 +1001,7 @@ footer.foot {
         </div>
         <div class="intro-point">
           <span class="pi">🧭</span>
-          <span><span class="pt">投資タイプを判定</span><span class="pd">3つの質問であなたのスタイルを診断します</span></span>
+          <span><span class="pt">投資タイプを判定</span><span class="pd">5つの質問と余裕額から全9タイプで診断します</span></span>
         </div>
       </div>
 
@@ -984,6 +1070,7 @@ footer.foot {
         <div id="fields-var"></div>
 
         <div style="margin-top:24px;">
+          <div class="form-alert" id="form-alert" role="alert" hidden></div>
           <button class="btn-primary" id="btn-diagnose">診断する</button>
           <p style="font-size:11.5px; color:var(--ink-3); text-align:center; margin:10px 0 0;">
             わからない項目は空欄(0円)のままでOK。あとから変更できます。
@@ -996,7 +1083,7 @@ footer.foot {
   <!-- ============ STEP2: 無料の診断結果 ============ -->
   <div id="screen-result" hidden>
 
-    <div class="hero-card reveal">
+    <div class="hero-card reveal" aria-live="polite">
       <div class="lb">毎月、投資に回せる目安額</div>
       <div class="amt"><span id="result-amount">0</span><small>円</small></div>
       <div class="rate" id="result-rate"></div>
@@ -1010,6 +1097,9 @@ footer.foot {
     <div class="card reveal">
       <div class="result-comment" id="result-comment" style="margin-top:0;"></div>
     </div>
+
+    <!-- 投資に回す前に確保しておくお金(生活防衛資金) -->
+    <div class="card reveal" id="buffer-card"></div>
 
     <div class="card reveal">
       <h2 class="section-title"><span class="ic">👀</span>見落としがちな支出</h2>
@@ -1038,9 +1128,11 @@ footer.foot {
       </div>
 
       <div id="quiz-body"></div>
+      <p class="quiz-hint" id="quiz-hint">キーボードの <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> でも選べます</p>
       <button class="btn-text" id="btn-quiz-back" style="display:block; margin:14px auto 0;" hidden>← 前の質問に戻る</button>
 
-      <div id="type-card-wrap"></div>
+      <div id="type-card-wrap" aria-live="polite"></div>
+      <div id="answers-wrap"></div>
       <button class="btn-text" id="btn-quiz-retry" style="display:block; margin:14px auto 0;" hidden>もう一度診断する</button>
     </div>
 
@@ -1103,16 +1195,16 @@ footer.foot {
   <!-- ============ STEP3: 有料(タブ切り替え) ============ -->
   <div id="screen-premium" hidden>
 
-    <div class="tabbar" id="tabbar">
-      <button class="tab selected" data-tab="sim"><span class="ti">📈</span>積立試算</button>
-      <button class="tab" data-tab="fund"><span class="ti">💼</span>投資プラン</button>
-      <button class="tab" data-tab="goal"><span class="ti">🎯</span>目標逆算</button>
-      <button class="tab" data-tab="todo"><span class="ti">✅</span>やること</button>
-      <button class="tab" data-tab="share"><span class="ti">📱</span>シェア</button>
+    <div class="tabbar" id="tabbar" role="tablist" aria-label="詳細プランの切り替え">
+      <button class="tab selected" data-tab="sim"  role="tab" aria-selected="true"  aria-controls="panel-sim"  id="tab-sim"><span class="ti">📈</span>積立試算</button>
+      <button class="tab"          data-tab="fund" role="tab" aria-selected="false" aria-controls="panel-fund" id="tab-fund" tabindex="-1"><span class="ti">💼</span>投資プラン</button>
+      <button class="tab"          data-tab="goal" role="tab" aria-selected="false" aria-controls="panel-goal" id="tab-goal" tabindex="-1"><span class="ti">🎯</span>目標逆算</button>
+      <button class="tab"          data-tab="todo" role="tab" aria-selected="false" aria-controls="panel-todo" id="tab-todo" tabindex="-1"><span class="ti">✅</span>やること</button>
+      <button class="tab"          data-tab="share" role="tab" aria-selected="false" aria-controls="panel-share" id="tab-share" tabindex="-1"><span class="ti">📱</span>シェア</button>
     </div>
 
     <!-- タブ1: 積立試算 -->
-    <div class="tab-panel" data-panel="sim">
+    <div class="tab-panel" data-panel="sim" id="panel-sim" role="tabpanel" aria-labelledby="tab-sim">
       <div class="card">
         <span class="premium-flag">★ PREMIUM</span>
         <h2 class="section-title"><span class="ic">📈</span>NISA積立シミュレーション</h2>
@@ -1155,7 +1247,14 @@ footer.foot {
           </div>
         </div>
 
-        <div class="chart-box"><canvas id="sim-chart"></canvas></div>
+        <div class="chart-box">
+          <canvas id="sim-chart" role="img" aria-label="積立額の推移グラフ。正確な数字は下の「表で見る」から確認できます"></canvas>
+          <div class="chart-fallback" id="chart-fallback" hidden>
+            <span class="fi">📉</span>
+            <strong>グラフを表示できませんでした</strong>
+            <span>グラフの部品(Chart.js)が読み込めていません。オフラインになっていないか確認してください。金額は下の表でそのまま確認できます。</span>
+          </div>
+        </div>
         <div class="legend" id="chart-legend"></div>
 
         <div class="stat-row">
@@ -1177,7 +1276,7 @@ footer.foot {
     </div>
 
     <!-- タブ2: 投資プラン -->
-    <div class="tab-panel" data-panel="fund" hidden>
+    <div class="tab-panel" data-panel="fund" id="panel-fund" role="tabpanel" aria-labelledby="tab-fund" hidden>
       <div class="card">
         <span class="premium-flag">★ PREMIUM</span>
         <h2 class="section-title"><span class="ic">💼</span>あなたにおすすめの投資プラン</h2>
@@ -1189,7 +1288,7 @@ footer.foot {
     </div>
 
     <!-- タブ3: 目標逆算 -->
-    <div class="tab-panel" data-panel="goal" hidden>
+    <div class="tab-panel" data-panel="goal" id="panel-goal" role="tabpanel" aria-labelledby="tab-goal" hidden>
       <div class="card">
         <span class="premium-flag">★ PREMIUM</span>
         <h2 class="section-title"><span class="ic">🎯</span>「なりたい将来」から逆算する</h2>
@@ -1221,7 +1320,7 @@ footer.foot {
     </div>
 
     <!-- タブ4: やることリスト -->
-    <div class="tab-panel" data-panel="todo" hidden>
+    <div class="tab-panel" data-panel="todo" id="panel-todo" role="tabpanel" aria-labelledby="tab-todo" hidden>
       <div class="card">
         <span class="premium-flag">★ PREMIUM</span>
         <h2 class="section-title"><span class="ic">✅</span>今月からやることリスト</h2>
@@ -1241,7 +1340,7 @@ footer.foot {
     </div>
 
     <!-- タブ5: シェア -->
-    <div class="tab-panel" data-panel="share" hidden>
+    <div class="tab-panel" data-panel="share" id="panel-share" role="tabpanel" aria-labelledby="tab-share" hidden>
       <div class="card">
         <span class="premium-flag">★ PREMIUM</span>
         <h2 class="section-title"><span class="ic">📱</span>診断結果をシェア</h2>
@@ -1274,8 +1373,8 @@ footer.foot {
 <!-- 課金モーダル(ダミー) -->
 <!-- 前回の続きから再開するか聞くダイアログ -->
 <div class="modal-overlay" id="resume-modal" hidden>
-  <div class="modal">
-    <h3>前回の続きから再開しますか?</h3>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="resume-title">
+    <h3 id="resume-title">前回の続きから再開しますか?</h3>
     <div class="price" id="resume-when">前回の入力内容がこの端末に残っています</div>
     <div class="resume-info" id="resume-info"></div>
     <button class="btn-buy" id="btn-resume-yes" style="margin-bottom:10px;">はい、続きから再開する →</button>
@@ -1285,8 +1384,8 @@ footer.foot {
 </div>
 
 <div class="modal-overlay" id="paywall-modal" hidden>
-  <div class="modal">
-    <h3>詳細プランを見る</h3>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="paywall-title">
+    <h3 id="paywall-title">詳細プランを見る</h3>
     <div class="price">買い切り ¥300 / 追加課金はありません</div>
     <ul class="unlock-list" style="margin-bottom:20px;">
       <li>おすすめの投資信託を、商品名レベルで提案</li>

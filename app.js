@@ -225,10 +225,24 @@ const HEADINGS = {
 };
 
 let currentScreen = 'screen-intro';
+let currentStep = 0;
 
-function goScreen(id, stepNo) {
+window.addEventListener('popstate', (e) => {
+  const s = e.state;
+  if (s && s.screen) goScreen(s.screen, s.step, { push: false });
+  else goScreen('screen-intro', 0, { push: false });
+});
+
+function goScreen(id, stepNo, opts) {
+  const push = (!opts || opts.push !== false) && id !== currentScreen;
   SCREENS.forEach((s) => { $(s).hidden = s !== id; });
   currentScreen = id;
+  currentStep = stepNo;
+
+  // スマホの「戻る」でアプリごと離脱せず、1つ前の画面に戻れるようにする
+  if (push) {
+    try { history.pushState({ screen: id, step: stepNo }, ''); } catch (e) { /* file:// では使えない */ }
+  }
 
   // 導入画面は専用のビジュアルを使うので、共通ヘッダーは出さない
   const isIntro = id === 'screen-intro';
@@ -328,7 +342,30 @@ function updateSums() {
 // ============================================================
 let state = null;
 
+// 収入が空のまま診断すると、余裕額も比較も全部0になって意味がなくなる。
+// 支出が未入力なのは「まだ把握していない」だけなので通すが、収入だけは必ず聞く。
+function validateForm() {
+  const d = readForm();
+  if (d.income <= 0) {
+    return 'バイト代か仕送りのどちらかを入力してください。<strong>収入がわからないと、投資に回せる金額が計算できません。</strong>';
+  }
+  return null;
+}
+
+function showFormAlert(msg) {
+  const box = $('form-alert');
+  if (!msg) { box.hidden = true; return; }
+  box.innerHTML = `<span class="ai">⚠️</span><span>${msg}</span>`;
+  box.hidden = false;
+  $('inc-work')?.focus();
+  box.scrollIntoView?.({ behavior: reduceMotion() ? 'auto' : 'smooth', block: 'center' });
+}
+
 function diagnose() {
+  const err = validateForm();
+  if (err) { showFormAlert(err); return; }
+  showFormAlert(null);
+
   const d = readForm();
   state = d;
 
@@ -340,6 +377,7 @@ function diagnose() {
     : '収入を入力すると、投資に回せる割合も出ます';
 
   $('result-comment').textContent = commentFor(d);
+  renderBuffer(d);
   renderLeakInsight(d);
   renderTopOverInsight(d);
   renderComparison(d);
@@ -348,10 +386,56 @@ function diagnose() {
 
   setMonthly(Math.max(1000, Math.round(d.surplus / 1000) * 1000));
 
+  // すでに5問答え終わっている状態で金額を直した場合、
+  // 余裕額が変わればタイプも変わりうるので判定し直す
+  if (selectedRisk && quizAnswers.every((a) => a !== null)) {
+    const total = quizAnswers.reduce((s, a, i) => s + QUIZ[i].opts[a].s, 0);
+    renderTypeCard(selectedRisk, total, { scroll: false });
+    if (paid) renderPortfolio(selectedRisk);
+  }
+
   stage = 'result';
   saveProgress();
   goScreen('screen-result', 2);
   countUp($('result-amount'), d.surplus, 900);
+}
+
+// ============================================================
+// 投資に回す前に確保しておくお金(生活防衛資金)
+// 余裕額を全部つぎ込むと、急な出費で売る羽目になる。そこだけは先に伝える
+// ============================================================
+function renderBuffer(d) {
+  const monthCost = d.total;                       // 1ヶ月の生活費 = 支出合計
+  const target = monthCost * 2;                    // まず2ヶ月分を目安にする
+  // 余裕額の8割までを投資、残りは手元に。1,000円単位に丸める
+  const invest = Math.max(0, Math.floor((d.surplus * 0.8) / 1000) * 1000);
+  const keep = Math.max(0, d.surplus - invest);
+
+  if (monthCost === 0 && d.surplus === 0) { $('buffer-card').hidden = true; return; }
+  $('buffer-card').hidden = false;
+
+  $('buffer-card').innerHTML = `
+    <h2 class="section-title"><span class="ic">🏦</span>投資に回す前に</h2>
+    <p class="section-sub">余裕額の全部を投資に回すのはおすすめしません</p>
+    <div class="buffer-split">
+      <div class="now">
+        <div class="k">まず投資に回す</div>
+        <div class="v">${num(invest)}<small>円</small></div>
+        <div class="s">余裕額の約8割</div>
+      </div>
+      <div class="goal">
+        <div class="k">手元に残す</div>
+        <div class="v">${num(keep)}<small>円</small></div>
+        <div class="s">急な出費に備える分</div>
+      </div>
+    </div>
+    <p class="buffer-note">
+      投資したお金は、値下がりしている時に限って必要になりがちです。
+      ${monthCost > 0 ? `あなたの生活費は月 ${num(monthCost)}円 なので、まず <strong>${manEn(target)}(2ヶ月分)</strong> を
+      普通預金に置いておくと、相場が下がっても売らずに済みます。` : ''}
+      この金額が貯まるまでは、投資の金額を無理に増やさないほうが結果的にうまくいきます。
+    </p>`;
+  linkifyTerms($('buffer-card'));
 }
 
 function commentFor(d) {
@@ -591,7 +675,8 @@ let paid = false;
 const CAT_VARS = ['--cat-1', '--cat-2', '--cat-3', '--cat-4'];
 
 // --- 無料: タイプ結果カード + 有料の壁 ---
-function renderTypeCard(key, score) {
+function renderTypeCard(key, score, opts) {
+  const scroll = !opts || opts.scroll !== false;
   const p = PORTFOLIOS[key];
   const surplus = state ? state.surplus : 0;
   const capKey = capacityKey(surplus);
@@ -623,14 +708,34 @@ function renderTypeCard(key, score) {
     ${score != null ? `<div class="score-line">5問の合計スコア <strong>${score}</strong> / 15点(5〜8=安定重視 / 9〜11=バランス / 12〜15=積極)× 投資に回せる余裕額 <strong>${num(surplus)}</strong>円 → 全9タイプから判定</div>` : ''}`;
   linkifyTerms($('type-card-wrap'));
 
+  renderAnswers();
   $('lock-type').textContent = per.name;
   renderPeek(p);
   renderReviews();              // 課金の直前に利用者の声を出す
   renderFaq();
   $('paywall-zone').hidden = false;
-  if (!reduceMotion()) {
+  if (scroll && !reduceMotion()) {
     $('paywall-zone').scrollIntoView?.({ behavior: 'smooth', block: 'nearest' });
   }
+}
+
+// 「なぜこのタイプになったのか」を自分で確かめられるようにする
+function renderAnswers() {
+  if (quizAnswers.some((a) => a === null)) { $('answers-wrap').innerHTML = ''; return; }
+  const rows = QUIZ.map((item, i) => {
+    const o = item.opts[quizAnswers[i]];
+    return `
+      <div class="answer-row">
+        <span class="qn">Q${i + 1}</span>
+        <span><span class="qt">${item.q}</span><span class="at">${o.t}</span></span>
+        <span class="sc">${o.s}点</span>
+      </div>`;
+  }).join('');
+  $('answers-wrap').innerHTML = `
+    <details class="answers">
+      <summary>あなたの回答を見る ▾</summary>
+      ${rows}
+    </details>`;
 }
 
 // ブラーの向こうに見える「中身のプレビュー」も、選んだタイプの実データで作る
@@ -708,6 +813,7 @@ const quizAnswers = new Array(QUIZ.length).fill(null);
 function renderQuiz() {
   const done = quizAnswers.every((a) => a !== null);
   $('quiz-progress').hidden = done;
+  $('quiz-hint').hidden = done;
   $('btn-quiz-back').hidden = done || quizIndex === 0;
   $('btn-quiz-retry').hidden = !done;
 
@@ -772,6 +878,18 @@ $('quiz-body').addEventListener('click', (e) => {
   if (btn) answerQuiz(Number(btn.dataset.opt));
 });
 
+// 1・2・3キーでも答えられるようにする(テンポよく5問こなせる)
+document.addEventListener('keydown', (e) => {
+  if (currentScreen !== 'screen-result') return;
+  if (e.target.closest('input, textarea, select')) return;
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  if (quizAnswers.every((a) => a !== null)) return;
+  const n = ['1', '2', '3'].indexOf(e.key);
+  if (n === -1) return;
+  const btn = $('quiz-body').querySelector(`[data-opt="${n}"]`);
+  if (btn) { e.preventDefault(); answerQuiz(n); }
+});
+
 $('btn-quiz-back').addEventListener('click', () => {
   if (quizIndex > 0) { quizIndex--; renderQuiz(); renderProgress(); saveProgress(); }
 });
@@ -782,6 +900,7 @@ $('btn-quiz-retry').addEventListener('click', () => {
   selectedRisk = null;
   selectedPersona = null;
   $('type-card-wrap').innerHTML = '';
+  $('answers-wrap').innerHTML = '';
   $('faq-card').hidden = true;
   $('reviews-card').hidden = true;
   $('paywall-zone').hidden = true;
@@ -919,9 +1038,31 @@ function renderReviews() {
 // 課金導線(ダミー)
 // ============================================================
 const modal = $('paywall-modal');
-$('btn-open-paywall').addEventListener('click', () => { modal.hidden = false; });
-$('btn-close-modal').addEventListener('click', () => { modal.hidden = true; });
-modal.addEventListener('click', (e) => { if (e.target === modal) modal.hidden = true; });
+
+// ダイアログを開くときは、閉じたあとに元のボタンへフォーカスを戻せるよう覚えておく
+let lastFocused = null;
+function openModal(el, focusId) {
+  lastFocused = document.activeElement;
+  el.hidden = false;
+  $(focusId)?.focus?.();
+}
+function closeModal(el) {
+  el.hidden = true;
+  lastFocused?.focus?.();
+  lastFocused = null;
+}
+
+$('btn-open-paywall').addEventListener('click', () => openModal(modal, 'btn-fake-pay'));
+$('btn-close-modal').addEventListener('click', () => closeModal(modal));
+modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(modal); });
+
+// Escキーで閉じられるようにする(スマホの外付けキーボードやPCで詰まらないため)
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape') return;
+  if (!$('resume-modal').hidden) { $('resume-modal').hidden = true; return; }
+  if (!modal.hidden) closeModal(modal);
+  else if (!tip.hidden) tip.hidden = true;
+});
 
 $('btn-fake-pay').addEventListener('click', () => {
   modal.hidden = true;
@@ -938,7 +1079,12 @@ $('btn-back-result').addEventListener('click', () => goScreen('screen-result', 2
 // 有料のタブ切り替え
 // ============================================================
 function showTab(name) {
-  document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('selected', t.dataset.tab === name));
+  document.querySelectorAll('.tab').forEach((t) => {
+    const on = t.dataset.tab === name;
+    t.classList.toggle('selected', on);
+    t.setAttribute('aria-selected', on ? 'true' : 'false');
+    t.tabIndex = on ? 0 : -1;          // タブ列全体を Tab キー1回で通り抜けられるようにする
+  });
   document.querySelectorAll('.tab-panel').forEach((p) => {
     const on = p.dataset.panel === name;
     p.hidden = !on;
@@ -950,6 +1096,18 @@ function showTab(name) {
 $('tabbar').addEventListener('click', (e) => {
   const tab = e.target.closest('.tab');
   if (tab) showTab(tab.dataset.tab);
+});
+
+// 左右の矢印キーでタブを移動できるようにする
+$('tabbar').addEventListener('keydown', (e) => {
+  const step = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
+  if (!step) return;
+  e.preventDefault();
+  const tabs = [...document.querySelectorAll('.tab')];
+  const now = tabs.findIndex((t) => t.classList.contains('selected'));
+  const next = tabs[(now + step + tabs.length) % tabs.length];
+  showTab(next.dataset.tab);
+  next.focus();
 });
 
 // ============================================================
@@ -1082,6 +1240,19 @@ function buildChart() {
     ];
   }
 
+  // グラフの部品(Chart.js)はCDNから読み込んでいるので、
+  // オフラインや通信の失敗で無いことがある。そのときは数字と表だけで成立させる
+  if (typeof Chart === 'undefined') {
+    $('chart-fallback').hidden = false;
+    $('sim-chart').hidden = true;
+    $('table-wrap').hidden = false;
+    $('btn-toggle-table').textContent = '表を閉じる ▴';
+    finishChart();
+    return;
+  }
+  $('chart-fallback').hidden = true;
+  $('sim-chart').hidden = false;
+
   if (chart) chart.destroy();
   chart = new Chart($('sim-chart').getContext('2d'), {
     type: 'bar',
@@ -1125,20 +1296,25 @@ function buildChart() {
     },
   });
 
-  // 凡例に終了時点の金額を直接表示(色だけに意味を持たせない)
-  $('chart-legend').innerHTML = legendItems.map((x) => `
-    <div class="item">
-      <span class="swatch${x.block ? ' block' : ''}" style="background:${x.color}"></span>
-      ${x.key} <span class="val">${manEn(x.val)}</span>
-    </div>`).join('');
+  finishChart();
 
-  const main = s[baseIdx][years];
-  const prin = principal[years];
-  $('fv-main').textContent = manEn(main);
-  $('fv-gain').textContent = manEn(main - prin);
-  $('fv-principal').textContent = manEn(prin);
+  // 凡例・合計額・表は、グラフが描けたかどうかに関係なく必ず出す
+  function finishChart() {
+    // 凡例に終了時点の金額を直接表示(色だけに意味を持たせない)
+    $('chart-legend').innerHTML = legendItems.map((x) => `
+      <div class="item">
+        <span class="swatch${x.block ? ' block' : ''}" style="background:${x.color}"></span>
+        ${x.key} <span class="val">${manEn(x.val)}</span>
+      </div>`).join('');
 
-  renderTable(principal, s, compareMode ? RATES.map((_, i) => i) : [baseIdx]);
+    const main = s[baseIdx][years];
+    const prin = principal[years];
+    $('fv-main').textContent = manEn(main);
+    $('fv-gain').textContent = manEn(main - prin);
+    $('fv-principal').textContent = manEn(prin);
+
+    renderTable(principal, s, compareMode ? RATES.map((_, i) => i) : [baseIdx]);
+  }
 }
 
 function renderTable(principal, s, shownIdx) {
@@ -1743,7 +1919,7 @@ function askResume() {
   if (!s) return;
   $('resume-when').textContent = whenText(s.at);
   $('resume-info').innerHTML = progressSummary(s);
-  $('resume-modal').hidden = false;
+  openModal($('resume-modal'), 'btn-resume-yes');
 
   $('btn-resume-yes').addEventListener('click', () => {
     $('resume-modal').hidden = true;
@@ -1765,4 +1941,5 @@ renderGoal();
 renderQuiz();
 renderCounter();
 renderProgress();
+try { history.replaceState({ screen: 'screen-intro', step: 0 }, ''); } catch (e) { }
 askResume();
