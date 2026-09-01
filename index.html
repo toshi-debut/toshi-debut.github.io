@@ -21,15 +21,22 @@
     --brand-mint: #16a672;
     --brand-mint-soft: #e4f5ee;
 
-    --series-3: #6da7ec;   /* 3% (sequential, light) */
-    --series-5: #2a78d6;   /* 5% (sequential, mid) */
-    --series-7: #104281;   /* 7% (sequential, dark) */
-    --series-principal: #898781; /* 元本 */
+    /* 利回り3水準 = 大きさの順序なので単一色相の濃淡(sequential) */
+    --series-3: #86b6ef;
+    --series-5: #2a78d6;
+    --series-7: #104281;
+    --series-principal: #898781;
 
-    --alloc-stock: #2a78d6;  /* 株式 (categorical slot1) */
-    --alloc-bond: #1baf7a;   /* 債券 (categorical slot3) */
+    /* ポートフォリオのテーマ = 種類の違い(categorical スロット1〜4) */
+    --cat-1: #2a78d6;
+    --cat-2: #eb6834;
+    --cat-3: #1baf7a;
+    --cat-4: #eda100;
 
+    /* 判定バッジ(状態色。必ず文字ラベルとセットで使う) */
     --good: #0ca30c;
+    --warning: #fab219;
+    --critical: #d03b3b;
   }
   @media (prefers-color-scheme: dark) {
     :root {
@@ -49,14 +56,18 @@
       --brand-mint-soft: #16281f;
 
       --series-3: #9ec5f4;
-      --series-5: #5598e7;
-      --series-7: #256abf;
+      --series-5: #3987e5;
+      --series-7: #184f95;
       --series-principal: #898781;
 
-      --alloc-stock: #3987e5;
-      --alloc-bond: #199e70;
+      --cat-1: #3987e5;
+      --cat-2: #d95926;
+      --cat-3: #199e70;
+      --cat-4: #c98500;
 
       --good: #0ca30c;
+      --warning: #fab219;
+      --critical: #d03b3b;
     }
   }
 
@@ -70,62 +81,48 @@
     line-height: 1.6;
   }
   .wrap { max-width: 640px; margin: 0 auto; padding: 20px 16px 80px; }
+  [hidden] { display: none !important; }
 
-  header.top {
-    text-align: center;
-    padding: 28px 16px 20px;
-  }
+  header.top { text-align: center; padding: 28px 16px 20px; }
   header.top .logo {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    font-weight: 800;
-    font-size: 15px;
-    color: var(--brand-navy);
-    letter-spacing: .02em;
+    display: inline-flex; align-items: center; gap: 8px;
+    font-weight: 800; font-size: 15px; color: var(--brand-navy); letter-spacing: .02em;
   }
   header.top .logo .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--brand-mint); }
-  header.top h1 {
-    margin: 10px 0 6px;
-    font-size: 26px;
-    font-weight: 800;
-  }
-  header.top p {
-    margin: 0;
-    color: var(--text-secondary);
-    font-size: 14px;
-  }
+  header.top h1 { margin: 10px 0 6px; font-size: 26px; font-weight: 800; }
+  header.top p { margin: 0; color: var(--text-secondary); font-size: 14px; }
 
   .card {
     background: var(--card);
     border: 1px solid var(--border);
     border-radius: 18px;
-    padding: 24px;
+    padding: 22px;
     box-shadow: 0 2px 14px rgba(11,11,11,0.05);
     margin-bottom: 16px;
   }
 
-  .field { margin-bottom: 18px; }
-  .field:last-child { margin-bottom: 0; }
-  .field label {
-    display: block;
-    font-size: 13px;
-    font-weight: 700;
-    color: var(--text-secondary);
-    margin-bottom: 6px;
+  h2.section-title { font-size: 16px; margin: 0 0 4px; }
+  p.section-sub { font-size: 12.5px; color: var(--text-muted); margin: 0 0 6px; }
+
+  /* ---------- 入力フォーム ---------- */
+  .seg-head {
+    display: flex; align-items: baseline; gap: 8px;
+    margin: 22px 0 10px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--grid);
   }
-  .field .hint {
-    font-size: 12px;
-    color: var(--text-muted);
-    font-weight: 400;
-    margin-left: 4px;
-  }
-  .input-yen {
-    position: relative;
-  }
+  .seg-head:first-child { margin-top: 0; }
+  .seg-head .t { font-size: 14px; font-weight: 800; }
+  .seg-head .s { font-size: 11.5px; color: var(--text-muted); }
+  .seg-head .sum { margin-left: auto; font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--brand-navy); }
+
+  .field { margin-bottom: 14px; }
+  .field label { display: block; font-size: 13px; font-weight: 700; color: var(--text-secondary); margin-bottom: 5px; }
+  .field .note { display: block; font-size: 11.5px; color: var(--text-muted); font-weight: 400; margin-top: 1px; }
+  .input-yen { position: relative; }
   .input-yen input {
     width: 100%;
-    padding: 12px 14px 12px 32px;
+    padding: 11px 14px 11px 32px;
     border-radius: 12px;
     border: 1.5px solid var(--grid);
     background: var(--surface-1);
@@ -137,243 +134,219 @@
   }
   .input-yen input:focus { border-color: var(--brand-navy); }
   .input-yen::before {
-    content: "¥";
-    position: absolute;
-    left: 12px;
-    top: 50%;
-    transform: translateY(-50%);
-    color: var(--text-muted);
-    font-weight: 700;
-    pointer-events: none;
+    content: "¥"; position: absolute; left: 12px; top: 50%;
+    transform: translateY(-50%); color: var(--text-muted); font-weight: 700; pointer-events: none;
   }
 
-  button {
-    font-family: inherit;
-    cursor: pointer;
-  }
+  button { font-family: inherit; cursor: pointer; }
   .btn-primary {
-    width: 100%;
-    padding: 14px 20px;
-    border: none;
-    border-radius: 12px;
-    background: var(--brand-navy);
-    color: #fff;
-    font-size: 15px;
-    font-weight: 700;
+    width: 100%; padding: 14px 20px; border: none; border-radius: 12px;
+    background: var(--brand-navy); color: #fff; font-size: 15px; font-weight: 700;
     transition: background .15s, transform .05s;
   }
   .btn-primary:hover { background: var(--brand-navy-deep); }
   .btn-primary:active { transform: scale(0.99); }
-
-  .btn-secondary {
-    width: 100%;
-    padding: 13px 20px;
-    border: 1.5px solid var(--brand-navy);
-    border-radius: 12px;
-    background: transparent;
-    color: var(--brand-navy);
-    font-size: 14px;
-    font-weight: 700;
+  .btn-outline {
+    width: 100%; padding: 12px 20px; border: 1.5px solid var(--brand-navy);
+    border-radius: 12px; background: transparent; color: var(--brand-navy);
+    font-size: 14px; font-weight: 700;
   }
-
   .btn-text {
-    background: none;
-    border: none;
-    color: var(--text-muted);
-    font-size: 13px;
-    text-decoration: underline;
-    padding: 6px;
+    background: none; border: none; color: var(--text-muted);
+    font-size: 13px; text-decoration: underline; padding: 6px;
   }
 
-  [hidden] { display: none !important; }
-
-  /* --- 診断結果 --- */
-  .result-hero {
-    text-align: center;
-    padding: 8px 0 4px;
-  }
-  .result-hero .label {
-    font-size: 13px;
-    font-weight: 700;
-    color: var(--text-secondary);
-  }
+  /* ---------- 診断結果ヒーロー ---------- */
+  .result-hero { text-align: center; padding: 4px 0; }
+  .result-hero .label { font-size: 13px; font-weight: 700; color: var(--text-secondary); }
   .result-hero .amount {
-    font-size: 42px;
-    font-weight: 800;
-    color: var(--brand-navy);
-    margin: 6px 0 2px;
-    font-variant-numeric: tabular-nums;
+    font-size: 44px; font-weight: 800; color: var(--brand-navy);
+    margin: 4px 0 2px; font-variant-numeric: tabular-nums; line-height: 1.1;
   }
   .result-hero .amount small { font-size: 18px; font-weight: 700; }
+  .result-hero .sub { font-size: 12.5px; color: var(--text-muted); }
   .result-comment {
     background: var(--brand-mint-soft);
-    border-radius: 12px;
-    padding: 14px 16px;
-    font-size: 14px;
-    color: var(--text-primary);
-    margin-top: 16px;
+    border-radius: 12px; padding: 13px 15px; font-size: 13.5px;
+    color: var(--text-primary); margin-top: 16px;
   }
   .breakdown {
-    display: flex;
-    justify-content: space-between;
-    font-size: 13px;
-    color: var(--text-secondary);
-    border-top: 1px solid var(--grid);
-    margin-top: 18px;
-    padding-top: 14px;
+    display: flex; justify-content: space-between; font-size: 12.5px;
+    color: var(--text-secondary); border-top: 1px solid var(--grid);
+    margin-top: 18px; padding-top: 14px;
   }
   .breakdown div { text-align: center; flex: 1; }
   .breakdown .v { font-weight: 700; color: var(--text-primary); font-size: 14px; margin-top: 2px; font-variant-numeric: tabular-nums; }
 
-  /* --- CTA / paywall --- */
+  /* ---------- 気づきカード ---------- */
+  .insight {
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--brand-mint);
+    border-radius: 12px;
+    background: var(--surface-1);
+    padding: 14px 16px;
+    margin-top: 12px;
+  }
+  .insight .h { font-size: 13px; font-weight: 800; margin-bottom: 4px; }
+  .insight .b { font-size: 13px; color: var(--text-secondary); }
+  .insight .big {
+    font-size: 24px; font-weight: 800; color: var(--brand-mint);
+    font-variant-numeric: tabular-nums; display: block; margin: 6px 0 2px;
+  }
+  .insight.alert { border-left-color: var(--critical); }
+  .insight.alert .big { color: var(--critical); }
+
+  /* ---------- 平均との比較バー ---------- */
+  .cmp-row { margin-bottom: 14px; }
+  .cmp-head { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+  .cmp-head .name { font-weight: 700; }
+  .pill {
+    font-size: 10.5px; font-weight: 800; padding: 1px 8px; border-radius: 999px;
+    border: 1px solid var(--border); white-space: nowrap;
+  }
+  .pill .ic { margin-right: 3px; }
+  .pill-over { color: var(--text-primary); background: color-mix(in srgb, var(--critical) 16%, transparent); border-color: var(--critical); }
+  .pill-mid  { color: var(--text-primary); background: color-mix(in srgb, var(--warning) 18%, transparent); border-color: var(--warning); }
+  .pill-good { color: var(--text-primary); background: color-mix(in srgb, var(--good) 14%, transparent); border-color: var(--good); }
+  .cmp-track {
+    position: relative; height: 12px; border-radius: 6px;
+    background: var(--grid); margin: 6px 0 4px; overflow: visible;
+  }
+  .cmp-fill { height: 100%; border-radius: 6px; background: var(--brand-navy); }
+  .cmp-avg {
+    position: absolute; top: -3px; width: 2px; height: 18px;
+    background: var(--text-secondary); border-radius: 1px;
+  }
+  .cmp-foot {
+    display: flex; justify-content: space-between;
+    font-size: 11.5px; color: var(--text-muted); font-variant-numeric: tabular-nums;
+  }
+  .cmp-foot .mine { color: var(--text-primary); font-weight: 700; }
+
+  /* ---------- 無料 / 有料の対比 ---------- */
+  .plan-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 4px; }
+  .plan-col { border-radius: 12px; padding: 12px 13px; font-size: 12px; }
+  .plan-col .ph { font-size: 11px; font-weight: 800; letter-spacing: .04em; margin-bottom: 8px; }
+  .plan-col ul { margin: 0; padding-left: 15px; }
+  .plan-col li { margin-bottom: 4px; }
+  .plan-free { background: var(--surface-1); border: 1px solid var(--border); color: var(--text-secondary); }
+  .plan-free .ph { color: var(--text-muted); }
+  .plan-paid { background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.25); color: #fff; }
+  .plan-paid .ph { color: #fff; }
+
   .cta-card {
     background: linear-gradient(135deg, var(--brand-navy) 0%, var(--brand-navy-deep) 100%);
-    color: #fff;
-    border-radius: 18px;
-    padding: 22px;
-    margin-bottom: 16px;
+    color: #fff; border-radius: 18px; padding: 20px; margin-bottom: 16px;
   }
   .cta-card h3 { margin: 0 0 6px; font-size: 17px; }
-  .cta-card p { margin: 0 0 16px; font-size: 13px; opacity: .9; }
-  .cta-card .btn-cta {
-    width: 100%;
-    padding: 13px;
-    border: none;
-    border-radius: 12px;
-    background: var(--brand-mint);
-    color: #fff;
-    font-weight: 700;
-    font-size: 14px;
+  .cta-card > p { margin: 0 0 14px; font-size: 13px; opacity: .9; }
+  .btn-cta {
+    width: 100%; padding: 13px; border: none; border-radius: 12px;
+    background: var(--brand-mint); color: #fff; font-weight: 700; font-size: 14px;
   }
+  .cta-card .btn-cta { margin-top: 14px; }
 
-  /* --- modal --- */
+  /* ---------- モーダル ---------- */
   .modal-overlay {
-    position: fixed; inset: 0;
-    background: rgba(0,0,0,0.5);
-    display: flex; align-items: flex-end;
-    justify-content: center;
-    z-index: 50;
+    position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+    display: flex; align-items: flex-end; justify-content: center; z-index: 50;
   }
   .modal {
-    background: var(--card);
-    width: 100%; max-width: 640px;
-    border-radius: 20px 20px 0 0;
-    padding: 26px 22px 30px;
+    background: var(--card); width: 100%; max-width: 640px;
+    border-radius: 20px 20px 0 0; padding: 26px 22px 30px;
   }
   .modal h3 { margin: 0 0 4px; font-size: 18px; }
   .modal .price { font-size: 13px; color: var(--text-muted); margin-bottom: 16px; }
   .modal ul { margin: 0 0 20px; padding-left: 20px; font-size: 14px; color: var(--text-secondary); }
   .modal li { margin-bottom: 6px; }
-  .modal .demo-note {
-    font-size: 11px; color: var(--text-muted); text-align: center; margin-top: 10px;
-  }
+  .modal .demo-note { font-size: 11px; color: var(--text-muted); text-align: center; margin-top: 10px; }
 
-  /* --- premium --- */
+  /* ---------- 有料画面 ---------- */
   .badge-premium {
-    display: inline-block;
-    background: var(--brand-mint);
-    color: #fff;
-    font-size: 11px;
-    font-weight: 700;
-    padding: 3px 10px;
-    border-radius: 999px;
-    margin-bottom: 10px;
+    display: inline-block; background: var(--brand-mint); color: #fff;
+    font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 999px; margin-bottom: 10px;
   }
-  .risk-options {
-    display: flex;
-    gap: 8px;
-    margin-top: 10px;
-  }
+  .risk-options { display: flex; gap: 8px; margin-top: 10px; }
   .risk-btn {
-    flex: 1;
-    padding: 12px 6px;
-    border-radius: 12px;
-    border: 1.5px solid var(--grid);
-    background: var(--surface-1);
-    color: var(--text-primary);
-    font-size: 13px;
-    font-weight: 700;
-    text-align: center;
+    flex: 1; padding: 11px 6px; border-radius: 12px; border: 1.5px solid var(--grid);
+    background: var(--surface-1); color: var(--text-primary);
+    font-size: 13px; font-weight: 700; text-align: center;
   }
   .risk-btn .sub { display: block; font-size: 11px; font-weight: 400; color: var(--text-muted); margin-top: 2px; }
-  .risk-btn.selected {
-    border-color: var(--brand-navy);
-    background: var(--brand-mint-soft);
-    color: var(--brand-navy);
-  }
+  .risk-btn.selected { border-color: var(--brand-navy); background: var(--brand-mint-soft); color: var(--brand-navy); }
 
-  .field-inline {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-top: 14px;
+  /* スライダー行 */
+  .ctrl { margin-top: 16px; }
+  .ctrl-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 6px; }
+  .ctrl-head label { font-size: 13px; font-weight: 700; color: var(--text-secondary); }
+  .ctrl-head .val { margin-left: auto; font-size: 15px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  input[type=range] {
+    width: 100%; accent-color: var(--brand-navy); height: 22px; margin: 0;
   }
-  .field-inline label { font-size: 13px; font-weight: 700; color: var(--text-secondary); flex-shrink: 0; }
+  .ctrl-scale { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted); }
 
-  /* chart legend */
-  .legend {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px 16px;
-    justify-content: center;
-    margin-top: 14px;
-    font-size: 12px;
+  .rate-tabs { display: flex; gap: 6px; margin-top: 8px; }
+  .rate-tab {
+    flex: 1; padding: 8px 4px; border-radius: 10px; border: 1.5px solid var(--grid);
+    background: var(--surface-1); color: var(--text-secondary); font-size: 12.5px; font-weight: 700;
   }
+  .rate-tab.selected { border-color: var(--brand-navy); color: #fff; background: var(--brand-navy); }
+
+  /* グラフ枠(高さを固定して縦長を防ぐ) */
+  .chart-box { position: relative; height: 230px; margin-top: 14px; }
+  @media (max-width: 420px) { .chart-box { height: 200px; } }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 8px 14px; justify-content: center; margin-top: 12px; font-size: 12px; }
   .legend .item { display: flex; align-items: center; gap: 6px; color: var(--text-secondary); }
   .legend .swatch { width: 14px; height: 3px; border-radius: 2px; }
   .legend .swatch.dashed { background: repeating-linear-gradient(to right, var(--series-principal) 0 4px, transparent 4px 7px); }
   .legend .val { font-weight: 700; color: var(--text-primary); font-variant-numeric: tabular-nums; }
 
-  table.data-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 12.5px;
-    margin-top: 14px;
-  }
+  table.data-table { width: 100%; border-collapse: collapse; font-size: 12.5px; margin-top: 14px; }
   table.data-table th, table.data-table td {
-    padding: 7px 6px;
-    text-align: right;
-    border-bottom: 1px solid var(--grid);
-    font-variant-numeric: tabular-nums;
+    padding: 7px 6px; text-align: right; border-bottom: 1px solid var(--grid); font-variant-numeric: tabular-nums;
   }
   table.data-table th:first-child, table.data-table td:first-child { text-align: left; color: var(--text-secondary); }
   table.data-table thead th { color: var(--text-muted); font-weight: 700; font-size: 11px; }
 
-  .alloc-bar {
-    display: flex;
-    height: 28px;
-    border-radius: 8px;
-    overflow: hidden;
-    margin-top: 12px;
-    gap: 2px;
+  /* +1,000円 比較 */
+  .boost-list { margin-top: 12px; }
+  .boost-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 12px; border-radius: 10px; background: var(--surface-1);
+    border: 1px solid var(--border); margin-bottom: 8px;
   }
-  .alloc-bar .seg { display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #fff; }
-  .alloc-legend {
-    display: flex;
-    gap: 18px;
-    margin-top: 10px;
-    font-size: 13px;
+  .boost-row .plus { font-size: 13px; font-weight: 800; color: var(--brand-navy); white-space: nowrap; }
+  .boost-row .arrow { color: var(--text-muted); font-size: 12px; }
+  .boost-row .gain { margin-left: auto; text-align: right; }
+  .boost-row .gain .g { font-size: 16px; font-weight: 800; color: var(--brand-mint); font-variant-numeric: tabular-nums; }
+  .boost-row .gain .s { font-size: 11px; color: var(--text-muted); }
+
+  /* ポートフォリオ */
+  .port-bar { display: flex; height: 26px; border-radius: 8px; overflow: hidden; margin-top: 12px; gap: 2px; }
+  .port-bar .seg { display: flex; align-items: center; justify-content: center; font-size: 11.5px; font-weight: 700; color: #fff; }
+  .port-list { margin-top: 12px; }
+  .port-item {
+    display: flex; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--grid);
   }
-  .alloc-legend .item { display: flex; align-items: center; gap: 6px; color: var(--text-secondary); }
-  .alloc-legend .swatch { width: 10px; height: 10px; border-radius: 3px; }
+  .port-item:last-child { border-bottom: none; }
+  .port-item .sw { width: 10px; height: 10px; border-radius: 3px; margin-top: 6px; flex-shrink: 0; }
+  .port-item .nm { font-size: 13.5px; font-weight: 700; }
+  .port-item .pc { font-size: 13.5px; font-weight: 800; font-variant-numeric: tabular-nums; margin-left: auto; flex-shrink: 0; }
+  .port-item .ds { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+  .port-item .ex { font-size: 11.5px; color: var(--text-muted); margin-top: 3px; }
   .alloc-comment {
-    background: var(--surface-1);
-    border-radius: 10px;
-    padding: 12px 14px;
-    font-size: 13px;
-    color: var(--text-secondary);
-    margin-top: 12px;
+    background: var(--surface-1); border-radius: 10px; padding: 12px 14px;
+    font-size: 13px; color: var(--text-secondary); margin-top: 12px;
   }
 
-  h2.section-title { font-size: 16px; margin: 0 0 4px; }
-  p.section-sub { font-size: 12.5px; color: var(--text-muted); margin: 0 0 6px; }
-
-  footer.foot {
-    text-align: center;
-    font-size: 11px;
-    color: var(--text-muted);
-    margin-top: 24px;
+  /* 保存カード */
+  .save-preview {
+    width: 100%; border-radius: 12px; border: 1px solid var(--border);
+    margin-top: 14px; display: block;
   }
+
+  footer.foot { text-align: center; font-size: 11px; color: var(--text-muted); margin-top: 24px; }
 </style>
 </head>
 <body>
@@ -381,91 +354,191 @@
 
   <header class="top">
     <div class="logo"><span class="dot"></span>投資デビュー診断</div>
-    <h1>毎月いくら投資に回せる?</h1>
-    <p>3つの数字を入れるだけ。30秒で診断します。</p>
+    <h1 id="head-title">毎月いくら投資に回せる?</h1>
+    <p id="head-sub">支出を項目ごとに入れると、「意外と使っていた金額」が見えます。</p>
   </header>
 
-  <!-- STEP 1: 入力フォーム -->
+  <!-- ===== STEP 1: 入力フォーム ===== -->
   <div class="card" id="screen-input">
-    <div class="field">
-      <label>月収(バイト代・仕送りなどの合計) <span class="hint">円/月</span></label>
-      <div class="input-yen"><input type="number" inputmode="numeric" id="income" placeholder="例: 100000" min="0"></div>
+    <div class="seg-head">
+      <span class="t">収入</span><span class="s">月あたり</span>
+      <span class="sum" id="sum-income">¥0</span>
     </div>
-    <div class="field">
-      <label>主な固定費(家賃・通信費など) <span class="hint">円/月</span></label>
-      <div class="input-yen"><input type="number" inputmode="numeric" id="fixed" placeholder="例: 40000" min="0"></div>
+    <div id="fields-income"></div>
+
+    <div class="seg-head">
+      <span class="t">固定費</span><span class="s">毎月ほぼ同じ額</span>
+      <span class="sum" id="sum-fixed">¥0</span>
     </div>
-    <div class="field">
-      <label>その他の月間支出(食費・交遊費など) <span class="hint">円/月</span></label>
-      <div class="input-yen"><input type="number" inputmode="numeric" id="other" placeholder="例: 35000" min="0"></div>
+    <div id="fields-fixed"></div>
+
+    <div class="seg-head">
+      <span class="t">変動費</span><span class="s">使い方で増減する</span>
+      <span class="sum" id="sum-var">¥0</span>
     </div>
-    <div class="field">
+    <div id="fields-var"></div>
+
+    <div style="margin-top:22px;">
       <button class="btn-primary" id="btn-diagnose">診断する</button>
+      <p style="font-size:11.5px; color:var(--text-muted); text-align:center; margin:10px 0 0;">
+        わからない項目は空欄(0円)のままでOK。あとから変更できます。
+      </p>
     </div>
   </div>
 
-  <!-- STEP 2: 診断結果(無料) -->
+  <!-- ===== STEP 2: 診断結果(無料) ===== -->
   <div id="screen-result" hidden>
     <div class="card">
       <div class="result-hero">
         <div class="label">毎月、投資に回せる目安額</div>
         <div class="amount"><span id="result-amount">0</span><small>円</small></div>
+        <div class="sub" id="result-rate"></div>
       </div>
       <div class="result-comment" id="result-comment"></div>
       <div class="breakdown">
-        <div>月収<div class="v" id="bd-income">-</div></div>
+        <div>収入<div class="v" id="bd-income">-</div></div>
         <div>固定費<div class="v" id="bd-fixed">-</div></div>
-        <div>その他支出<div class="v" id="bd-other">-</div></div>
+        <div>変動費<div class="v" id="bd-var">-</div></div>
       </div>
+    </div>
+
+    <!-- 気づき -->
+    <div class="card">
+      <h2 class="section-title">見落としがちな支出</h2>
+      <p class="section-sub">サブスク・カフェ/コンビニ・交遊費の合計です</p>
+      <div id="insight-leak"></div>
+      <div id="insight-top"></div>
+    </div>
+
+    <!-- 同世代比較 -->
+    <div class="card">
+      <h2 class="section-title">同世代の平均と比べると</h2>
+      <p class="section-sub">
+        濃いバーがあなた、縦線が大学生の平均的な金額(目安)です
+      </p>
+      <div id="cmp-list" style="margin-top:14px;"></div>
+      <p style="font-size:11px; color:var(--text-muted); margin:4px 0 0;">
+        ※平均額はサンプル用の参考値です。家賃は一人暮らし・実家暮らしで大きく変わります。
+      </p>
     </div>
 
     <div class="cta-card">
-      <h3>この余裕額、実際に運用したらどうなる?</h3>
-      <p>NISAで積立てた場合の10年後・20年後の資産推移をシミュレーションできます。</p>
-      <button class="btn-cta" id="btn-open-paywall">もっと詳しく見る →</button>
+      <h3>で、この金額を積み立てたらどうなる?</h3>
+      <p>ここから先は「使う」ではなく「増やす」の話。無料診断でわかるのはここまでです。</p>
+      <div class="plan-compare">
+        <div class="plan-col plan-free">
+          <div class="ph">無料でわかったこと</div>
+          <ul>
+            <li>毎月の余裕額</li>
+            <li>使いすぎている項目</li>
+            <li>節約した場合の年間効果</li>
+          </ul>
+        </div>
+        <div class="plan-col plan-paid">
+          <div class="ph">有料でわかること</div>
+          <ul>
+            <li>10〜40年後の資産額</li>
+            <li>積立額を変えた比較</li>
+            <li>あなた向けの銘柄タイプ</li>
+            <li>診断結果の画像保存</li>
+          </ul>
+        </div>
+      </div>
+      <button class="btn-cta" id="btn-open-paywall">詳細シミュレーションを見る →</button>
     </div>
 
-    <button class="btn-text" id="btn-back-input">← もう一度入力する</button>
+    <button class="btn-text" id="btn-back-input">← 入力をやり直す</button>
   </div>
 
-  <!-- STEP 3: 有料シミュレーション -->
+  <!-- ===== STEP 3: 有料シミュレーション ===== -->
   <div id="screen-premium" hidden>
+
+    <!-- 3-1 シミュレーション -->
     <div class="card">
       <span class="badge-premium">詳細シミュレーション</span>
-      <h2 class="section-title">あなたのリスク許容度は?</h2>
-      <p class="section-sub">3つのうち近いものを選んでください</p>
-      <div class="risk-options">
-        <button class="risk-btn" data-risk="stable">安定重視<span class="sub">値動きは小さく</span></button>
-        <button class="risk-btn" data-risk="balance">バランス<span class="sub">標準的な配分</span></button>
-        <button class="risk-btn" data-risk="active">積極的<span class="sub">大きく増やしたい</span></button>
-      </div>
-
-      <div class="alloc-bar" id="alloc-bar" hidden></div>
-      <div class="alloc-legend" id="alloc-legend" hidden></div>
-      <div class="alloc-comment" id="alloc-comment" hidden></div>
-    </div>
-
-    <div class="card">
       <h2 class="section-title">NISA積立シミュレーション</h2>
-      <p class="section-sub">利回り3パターンでの資産推移</p>
-      <div class="field-inline">
-        <label>毎月の積立額</label>
-        <div class="input-yen" style="flex:1"><input type="number" inputmode="numeric" id="sim-monthly" min="0"></div>
+      <p class="section-sub">金額・期間を動かすとグラフがその場で変わります</p>
+
+      <div class="ctrl">
+        <div class="ctrl-head">
+          <label for="sim-monthly-range">毎月の積立額</label>
+          <span class="val" id="sim-monthly-label">¥0</span>
+        </div>
+        <input type="range" id="sim-monthly-range" min="0" max="100000" step="1000" value="10000">
+        <div class="ctrl-scale"><span>0円</span><span>10万円</span></div>
+        <div class="input-yen" style="margin-top:8px;">
+          <input type="number" inputmode="numeric" id="sim-monthly" min="0" step="1000" value="10000">
+        </div>
       </div>
-      <canvas id="sim-chart" height="220" style="margin-top:14px;"></canvas>
+
+      <div class="ctrl">
+        <div class="ctrl-head">
+          <label for="sim-years-range">積立期間</label>
+          <span class="val" id="sim-years-label">20年</span>
+        </div>
+        <input type="range" id="sim-years-range" min="1" max="40" step="1" value="20">
+        <div class="ctrl-scale"><span>1年</span><span>40年</span></div>
+      </div>
+
+      <div class="ctrl">
+        <div class="ctrl-head">
+          <label>基準にする年利回り</label>
+          <span class="val" id="sim-rate-label">5%</span>
+        </div>
+        <div class="rate-tabs">
+          <button class="rate-tab" data-rate="3">年3%<br><span style="font-weight:400;font-size:11px;">堅め</span></button>
+          <button class="rate-tab selected" data-rate="5">年5%<br><span style="font-weight:400;font-size:11px;">標準</span></button>
+          <button class="rate-tab" data-rate="7">年7%<br><span style="font-weight:400;font-size:11px;">強気</span></button>
+        </div>
+      </div>
+
+      <div class="chart-box"><canvas id="sim-chart"></canvas></div>
       <div class="legend" id="chart-legend"></div>
 
-      <div class="breakdown" style="margin-top:20px;">
-        <div>10年後(年5%)<div class="v" id="fv-10">-</div></div>
-        <div>20年後(年5%)<div class="v" id="fv-20">-</div></div>
-        <div>累計投資額(20年)<div class="v" id="fv-principal">-</div></div>
+      <div class="breakdown" style="margin-top:18px;">
+        <div><span id="lab-fv">20年後</span>の資産<div class="v" id="fv-main">-</div></div>
+        <div>うち運用益<div class="v" id="fv-gain">-</div></div>
+        <div>累計投資額<div class="v" id="fv-principal">-</div></div>
       </div>
 
       <button class="btn-text" id="btn-toggle-table" style="display:block; margin: 12px auto 0;">表で見る ▾</button>
       <div id="table-wrap" hidden></div>
     </div>
 
-    <button class="btn-text" id="btn-back-result">← 診断結果に戻る</button>
+    <!-- 3-2 +1,000円比較 -->
+    <div class="card">
+      <h2 class="section-title">あと少し積み立てると、どれだけ変わる?</h2>
+      <p class="section-sub" id="boost-sub">現在の設定と比べた、期間終了時点の差額です</p>
+      <div class="boost-list" id="boost-list"></div>
+      <p style="font-size:11.5px; color:var(--text-muted); margin:6px 0 0;" id="boost-note"></p>
+    </div>
+
+    <!-- 3-3 リスク許容度 → ポートフォリオ -->
+    <div class="card">
+      <h2 class="section-title">あなたに合う投資先のタイプ</h2>
+      <p class="section-sub">3つのうち、いちばん近いものを選んでください</p>
+      <div class="risk-options">
+        <button class="risk-btn" data-risk="stable">安定重視<span class="sub">減るのが怖い</span></button>
+        <button class="risk-btn" data-risk="balance">バランス<span class="sub">ふつうでいい</span></button>
+        <button class="risk-btn" data-risk="active">積極的<span class="sub">大きく増やしたい</span></button>
+      </div>
+
+      <div class="port-bar" id="port-bar" hidden></div>
+      <div class="port-list" id="port-list" hidden></div>
+      <div class="alloc-comment" id="port-comment" hidden></div>
+    </div>
+
+    <!-- 3-4 保存 -->
+    <div class="card">
+      <h2 class="section-title">診断結果を保存する</h2>
+      <p class="section-sub">画像(PNG)で保存できます。そのままSNSや友達に送れます</p>
+      <button class="btn-primary" id="btn-make-card" style="margin-top:12px;">結果カードを作る</button>
+      <img class="save-preview" id="share-preview" alt="診断結果カードのプレビュー" hidden>
+      <button class="btn-outline" id="btn-download-card" style="margin-top:12px;" hidden>画像をダウンロード</button>
+      <canvas id="share-canvas" width="1080" height="1440" hidden></canvas>
+    </div>
+
+    <button class="btn-text" id="btn-back-result">← 無料診断の結果に戻る</button>
   </div>
 
   <footer class="foot">
@@ -477,12 +550,13 @@
 <!-- 課金導線モーダル(ダミー) -->
 <div class="modal-overlay" id="paywall-modal" hidden>
   <div class="modal">
-    <h3>NISA積立シミュレーション</h3>
+    <h3>詳細シミュレーション</h3>
     <div class="price">¥480 (買い切り) ※このアプリではまだ実際の決済は行われません</div>
     <ul>
-      <li>利回り3%/5%/7%での10年後・20年後の資産推移グラフ</li>
-      <li>リスク許容度に応じたおすすめの資産配分</li>
-      <li>積立額を自由に変えて何度でも試算可能</li>
+      <li>積立額・期間を自由に変えられるリアルタイム試算</li>
+      <li>「あと月1,000円」で将来いくら変わるかの比較</li>
+      <li>リスク許容度別の、テーマ分散ポートフォリオ提案</li>
+      <li>診断結果カードの画像ダウンロード</li>
     </ul>
     <button class="btn-cta" id="btn-fake-pay" style="width:100%; margin-bottom:10px;">購入する(仮) →</button>
     <button class="btn-text" id="btn-close-modal" style="display:block; margin:0 auto;">閉じる</button>
