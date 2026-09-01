@@ -506,7 +506,7 @@ let paid = false;
 const CAT_VARS = ['--cat-1', '--cat-2', '--cat-3', '--cat-4'];
 
 // --- 無料: タイプ結果カード + 有料の壁 ---
-function renderTypeCard(key) {
+function renderTypeCard(key, score) {
   const p = PORTFOLIOS[key];
   $('type-card-wrap').innerHTML = `
     <div class="type-card" style="background:linear-gradient(150deg, ${p.color} 0%, color-mix(in srgb, ${p.color} 55%, #08243a) 100%)">
@@ -519,12 +519,14 @@ function renderTypeCard(key) {
         <div><div class="k">値動きの大きさ</div><div class="v">${p.risk}</div></div>
         <div><div class="k">想定利回り</div><div class="v">${p.ret}</div></div>
       </div>
-    </div>`;
+    </div>
+    ${score != null ? `<div class="score-line">5問の合計スコア <strong>${score}</strong> / 15 点(5〜8=安定重視型 / 9〜11=バランス型 / 12〜15=積極型)</div>` : ''}`;
   linkifyTerms($('type-card-wrap'));
 
   $('lock-type').textContent = p.label;
   renderPeek(p);
   renderReviews();              // 課金の直前に利用者の声を出す
+  renderFaq();
   $('paywall-zone').hidden = false;
   if (!reduceMotion()) {
     $('paywall-zone').scrollIntoView?.({ behavior: 'smooth', block: 'nearest' });
@@ -544,14 +546,142 @@ function renderPeek(p) {
     </div>`).join('');
 }
 
-document.querySelectorAll('.risk-btn').forEach((btn) => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('.risk-btn').forEach((b) => b.classList.remove('selected'));
-    btn.classList.add('selected');
-    selectedRisk = btn.dataset.risk;
-    renderTypeCard(selectedRisk);
-    if (paid) renderPortfolio(selectedRisk);   // 購入後にタイプを変えたら有料側も作り直す
-  });
+// ============================================================
+// 投資タイプ診断(5問)
+// 各選択肢のスコア: 安定寄り=1 / 中間=2 / 積極寄り=3
+// 合計5〜15点で最終タイプを判定する
+// ============================================================
+const QUIZ = [
+  {
+    q: '投資したお金が1年で20%下がったら、どうしますか?',
+    opts: [
+      { t: 'すぐ売る', d: 'これ以上減るのは耐えられない', s: 1 },
+      { t: 'しばらく様子を見る', d: 'そのうち戻ると思うので放っておく', s: 2 },
+      { t: 'むしろ買い増したい', d: '安く買えるチャンスだと考える', s: 3 },
+    ],
+  },
+  {
+    q: '今すぐ使う予定のないお金。何年くらい、使わずにおいておけそうですか?',
+    opts: [
+      { t: '1〜2年以内には使いたい', d: '近いうちに使う予定がある', s: 1 },
+      { t: '5年くらいは大丈夫', d: '当面は手をつけないでいられる', s: 2 },
+      { t: '10年以上は使う予定がない', d: '完全に余裕資金として置いておける', s: 3 },
+    ],
+  },
+  {
+    q: '投資に対するイメージ、いちばん近いのはどれですか?',
+    opts: [
+      { t: '減るのが怖い', d: 'とにかく元本を減らしたくない', s: 1 },
+      { t: '多少の増減は仕方ない', d: '上下しながら増えればいい', s: 2 },
+      { t: '大きく増えるなら大きく減ってもいい', d: 'リターンを優先したい', s: 3 },
+    ],
+  },
+  {
+    q: 'バイト代が急に減ったら、生活はどれくらい苦しくなりそうですか?',
+    opts: [
+      { t: 'かなり苦しい', d: '毎月の収入がないと回らない', s: 1 },
+      { t: '多少は苦しいが何とかなる', d: '節約すれば乗り切れる', s: 2 },
+      { t: '貯金があるので余裕がある', d: '数ヶ月は問題なく生活できる', s: 3 },
+    ],
+  },
+  {
+    q: '友達が「株で大儲けした」と聞いたら、どう感じますか?',
+    opts: [
+      { t: '自分には関係ない', d: 'リスクは避けたい', s: 1 },
+      { t: '羨ましいけど自分は慎重に', d: '真似はせず自分のペースでいく', s: 2 },
+      { t: '自分もやってみたい', d: 'チャンスがあるなら乗りたい', s: 3 },
+    ],
+  },
+];
+
+// 合計スコアからタイプを決める(5〜8=安定 / 9〜11=バランス / 12〜15=積極)
+function typeFromScore(total) {
+  if (total <= 8) return 'stable';
+  if (total <= 11) return 'balance';
+  return 'active';
+}
+
+const MARKS = ['A', 'B', 'C'];
+let quizIndex = 0;
+const quizAnswers = new Array(QUIZ.length).fill(null);
+
+function renderQuiz() {
+  const done = quizAnswers.every((a) => a !== null);
+  $('quiz-progress').hidden = done;
+  $('btn-quiz-back').hidden = done || quizIndex === 0;
+  $('btn-quiz-retry').hidden = !done;
+
+  if (done) {
+    $('quiz-body').innerHTML = '';
+    $('quiz-sub').textContent = '5問すべてに答えました。結果は下のとおりです';
+    return;
+  }
+
+  const item = QUIZ[quizIndex];
+  $('quiz-sub').textContent = '5つの質問に答えるだけ。1分ほどで終わります';
+  $('quiz-fill').style.width = (quizIndex / QUIZ.length) * 100 + '%';
+  $('quiz-num').textContent = `${quizIndex + 1} / ${QUIZ.length}`;
+
+  $('quiz-body').innerHTML = `
+    <div class="quiz-body-anim">
+      <div class="quiz-q"><span class="qn">Q${quizIndex + 1}</span><br>${item.q}</div>
+      <div class="quiz-opts">
+        ${item.opts.map((o, i) => `
+          <button class="quiz-opt${quizAnswers[quizIndex] === i ? ' picked' : ''}" data-opt="${i}">
+            <span class="mk">${MARKS[i]}</span>
+            <span><span class="ot">${o.t}</span><span class="od">${o.d}</span></span>
+          </button>`).join('')}
+      </div>
+    </div>`;
+}
+
+function answerQuiz(optIndex) {
+  quizAnswers[quizIndex] = optIndex;
+  // 選んだことが分かるよう一瞬見せてから次へ進む
+  const btn = $('quiz-body').querySelector(`[data-opt="${optIndex}"]`);
+  if (btn) {
+    $('quiz-body').querySelectorAll('.quiz-opt').forEach((b) => b.classList.remove('picked'));
+    btn.classList.add('picked');
+  }
+  const wait = reduceMotion() ? 0 : 260;
+  setTimeout(() => {
+    if (quizIndex < QUIZ.length - 1) {
+      quizIndex++;
+      renderQuiz();
+    } else {
+      finishQuiz();
+    }
+  }, wait);
+}
+
+function finishQuiz() {
+  const total = quizAnswers.reduce((s, a, i) => s + QUIZ[i].opts[a].s, 0);
+  selectedRisk = typeFromScore(total);
+  $('quiz-fill').style.width = '100%';
+  renderQuiz();
+  renderTypeCard(selectedRisk, total);
+  if (paid) renderPortfolio(selectedRisk);   // 購入後に受け直したら有料側も作り直す
+}
+
+$('quiz-body').addEventListener('click', (e) => {
+  const btn = e.target.closest('.quiz-opt');
+  if (btn) answerQuiz(Number(btn.dataset.opt));
+});
+
+$('btn-quiz-back').addEventListener('click', () => {
+  if (quizIndex > 0) { quizIndex--; renderQuiz(); }
+});
+
+$('btn-quiz-retry').addEventListener('click', () => {
+  quizAnswers.fill(null);
+  quizIndex = 0;
+  selectedRisk = null;
+  $('type-card-wrap').innerHTML = '';
+  $('faq-card').hidden = true;
+  $('reviews-card').hidden = true;
+  $('paywall-zone').hidden = true;
+  renderQuiz();
+  $('quiz-card').scrollIntoView?.({ behavior: reduceMotion() ? 'auto' : 'smooth', block: 'start' });
 });
 
 // --- 有料: 具体的な投資信託の提案 ---
@@ -578,6 +708,71 @@ function renderPortfolio(key) {
   linkifyTerms($('port-list'));
   linkifyTerms($('port-comment'));
   renderTodo();
+}
+
+// ============================================================
+// 診断人数カウンター
+// 実際の利用者数が取れるようになったら DIAGNOSED を書き換える
+// ============================================================
+const DIAGNOSED = {
+  base: 12480,               // 起点となる人数(ここを実数に差し替える)
+  since: '2026-09-01',       // base を数えた日
+  perDay: 34,                // 1日あたりの増加ペース(見せかけ)
+};
+
+// 日が経つほど少しずつ増えて見えるようにした擬似的な人数
+function diagnosedCount() {
+  const days = Math.max(0, Math.floor((Date.now() - new Date(DIAGNOSED.since).getTime()) / 86400000));
+  return DIAGNOSED.base + days * DIAGNOSED.perDay;
+}
+
+function renderCounter() {
+  countUp($('counter-num'), diagnosedCount(), 1400);
+}
+function renderCounterInline() {
+  countUp($('counter-num-2'), diagnosedCount(), 900);
+}
+
+// ============================================================
+// よくある質問(FAQ)
+// ============================================================
+const FAQ_ITEMS = [
+  {
+    q: 'この診断は本当に当たっていますか?',
+    a: '占いではなく、入力していただいた収支と5問の回答をもとに計算しています。' +
+       '毎月の余裕額は「収入 − 入力された支出」、投資タイプは5問の合計スコア(5〜15点)で判定しています。' +
+       'ただし将来の運用結果まで当てられるものではありません。利回り3%/5%/7%はあくまで仮定の数字で、' +
+       '実際にその通りになる保証はない点だけは正直にお伝えしておきます。',
+  },
+  {
+    q: '支払い方法は何がありますか?',
+    a: 'クレジットカード(Visa / Mastercard / JCB / American Express)を予定しています。' +
+       '¥300の買い切りで、月額課金や追加料金は一切ありません。' +
+       'なお現在のバージョンは動作を試すためのもので、実際の決済は行われません(ボタンを押しても課金されません)。',
+  },
+  {
+    q: '診断結果は保存できますか?',
+    a: '「シェア」タブから、診断結果のカードを画像(PNG)として保存できます。' +
+       'サイズは1080×1920pxで、Instagramのストーリーズにそのまま貼れます。' +
+       'ただし入力した金額そのものはブラウザを閉じると消えるので、あとから見返したい場合は画像を保存しておいてください。',
+  },
+  {
+    q: '投資の知識が全くなくても大丈夫ですか?',
+    a: 'むしろ、これから始める人向けに作っています。専門用語には点線が引いてあり、' +
+       'タップすると意味が出るようにしました。' +
+       'また「今月からやることリスト」では、口座開設 → 商品選び → 積立設定の順に、' +
+       '何をすればいいかを1ステップずつ案内します。知識ゼロから順番になぞれる形になっています。',
+  },
+];
+
+function renderFaq() {
+  $('faq-list').innerHTML = FAQ_ITEMS.map((f) => `
+    <details class="faq-item">
+      <summary><span class="qq">Q</span><span>${f.q}</span><span class="ch">▼</span></summary>
+      <div class="faq-a">${f.a}</div>
+    </details>`).join('');
+  linkifyTerms($('faq-list'));
+  $('faq-card').hidden = false;
 }
 
 // ============================================================
@@ -608,6 +803,7 @@ function renderReviews() {
       </div>
     </div>`).join('');
   $('reviews-card').hidden = false;
+  renderCounterInline();
 }
 
 // ============================================================
@@ -1321,3 +1517,5 @@ $('btn-download-card').addEventListener('click', () => {
 setMonthly(10000);
 renderTodo();
 renderGoal();
+renderQuiz();
+renderCounter();
