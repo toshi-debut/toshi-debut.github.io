@@ -1,0 +1,155 @@
+/* =========================================================
+   法務ページ(特商法・プライバシーポリシー・利用規約)の共通スタイル
+   本体アプリ(index.html)と同じデザイントークンを使っている
+   ========================================================= */
+:root {
+  color-scheme: light;
+
+  --page: #eff4f9;
+  --card: #ffffff;
+  --surface: #f5f9fc;
+
+  --ink: #0c1c2c;
+  --ink-2: #47596b;
+  --ink-3: #7b8b9c;
+
+  --line: #dce6ef;
+  --border: rgba(12, 28, 44, 0.10);
+
+  --navy: #123a5e;
+  --navy-deep: #0a2540;
+  --navy-soft: #e9f0f7;
+
+  --mint: #0fa36b;
+  --mint-deep: #0b7d51;
+  --mint-soft: #e3f6ee;
+
+  --gold: #b8860b;
+  --gold-soft: #fbf2dc;
+
+  --r-md: 14px;
+  --r-lg: 20px;
+  --shadow-1: 0 2px 10px rgba(12, 28, 44, .06);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--page);
+  color: var(--ink);
+  font-family: system-ui, -apple-system, 'Segoe UI', 'Hiragino Sans',
+    'Hiragino Kaku Gothic ProN', 'Yu Gothic UI', 'Yu Gothic', Meiryo, 'Noto Sans JP', sans-serif;
+  font-feature-settings: 'palt' 1;
+  line-height: 1.9;
+  -webkit-text-size-adjust: 100%;
+}
+
+.wrap { max-width: 720px; margin: 0 auto; padding: 20px 16px 60px; }
+
+/* ---------- ヘッダー ---------- */
+.top {
+  background: var(--card);
+  border-bottom: 1px solid var(--line);
+  padding: 14px 0;
+}
+.top .inner {
+  max-width: 720px; margin: 0 auto; padding: 0 16px;
+  display: flex; align-items: center; gap: 10px;
+}
+.logo {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: 13px; font-weight: 800; letter-spacing: .06em; color: var(--navy);
+  text-decoration: none;
+}
+.logo .dot {
+  width: 9px; height: 9px; border-radius: 50%; background: var(--mint);
+}
+.back {
+  margin-left: auto; font-size: 12.5px; font-weight: 700;
+  color: var(--ink-2); text-decoration: none;
+}
+.back:hover { color: var(--navy); }
+
+/* ---------- 見出し ---------- */
+h1 {
+  font-size: 24px; font-weight: 800; letter-spacing: -.01em;
+  margin: 28px 0 6px; line-height: 1.5;
+}
+.updated { font-size: 12px; color: var(--ink-3); margin: 0 0 22px; }
+
+h2 {
+  font-size: 16px; font-weight: 800; margin: 30px 0 10px;
+  padding-left: 11px; border-left: 4px solid var(--navy); line-height: 1.6;
+}
+
+/* ---------- 本文 ---------- */
+p { font-size: 14px; color: var(--ink-2); margin: 0 0 14px; }
+strong { color: var(--ink); font-weight: 800; }
+
+ul, ol { font-size: 14px; color: var(--ink-2); margin: 0 0 14px; padding-left: 1.4em; }
+li { margin-bottom: 7px; }
+
+a { color: var(--navy); }
+
+/* ---------- カード ---------- */
+.card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--r-lg); padding: 20px 18px; margin-bottom: 16px;
+  box-shadow: var(--shadow-1);
+}
+
+/* ---------- 定義リスト(特商法の表) ---------- */
+.dl { margin: 0; }
+.dl > div {
+  display: grid; grid-template-columns: 180px 1fr; gap: 4px 18px;
+  padding: 15px 0; border-bottom: 1px solid var(--line);
+}
+.dl > div:last-child { border-bottom: none; }
+.dl dt {
+  font-size: 13px; font-weight: 800; color: var(--ink);
+}
+.dl dd { margin: 0; font-size: 14px; color: var(--ink-2); }
+.dl dd .sub {
+  display: block; font-size: 12px; color: var(--ink-3); margin-top: 6px; line-height: 1.8;
+}
+@media (max-width: 560px) {
+  .dl > div { grid-template-columns: 1fr; gap: 4px; padding: 14px 0; }
+}
+
+/* ---------- 差し替え用のプレースホルダー ---------- */
+.ph {
+  display: inline-block;
+  background: var(--gold-soft); border: 1px dashed var(--gold);
+  border-radius: 6px; padding: 2px 8px;
+  font-size: 13px; font-weight: 700; color: var(--gold);
+}
+
+/* ---------- 注意書き ---------- */
+.notice {
+  display: flex; align-items: flex-start; gap: 10px;
+  background: var(--gold-soft); border: 1px solid rgba(184, 134, 11, .3);
+  border-radius: var(--r-md); padding: 14px 16px; margin-bottom: 20px;
+  font-size: 12.5px; line-height: 1.85; color: var(--ink-2);
+}
+.notice .i { font-size: 16px; line-height: 1.5; flex: none; }
+.notice strong { color: var(--gold); }
+
+.info {
+  background: var(--navy-soft); border: 1px solid rgba(18, 58, 94, .18);
+  border-radius: var(--r-md); padding: 14px 16px; margin: 0 0 14px;
+  font-size: 13px; line-height: 1.85; color: var(--ink-2);
+}
+.info strong { color: var(--navy); }
+
+/* ---------- フッター ---------- */
+.foot {
+  border-top: 1px solid var(--line); margin-top: 34px; padding-top: 20px;
+  font-size: 12px; color: var(--ink-3); text-align: center; line-height: 2;
+}
+.foot nav { margin-bottom: 10px; }
+.foot nav a {
+  color: var(--ink-2); text-decoration: none; font-weight: 700;
+  margin: 0 9px; white-space: nowrap;
+}
+.foot nav a:hover { color: var(--navy); text-decoration: underline; }

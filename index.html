@@ -1267,6 +1267,16 @@ footer.foot {
   text-align: center; font-size: 11px; color: var(--ink-3);
   margin-top: 26px; line-height: 1.8;
 }
+.foot-links {
+  display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 18px;
+  padding: 16px 0; margin-bottom: 12px;
+  border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
+}
+.foot-links a {
+  font-size: 12px; font-weight: 700; color: var(--ink-2);
+  text-decoration: none; white-space: nowrap;
+}
+.foot-links a:hover { color: var(--navy); text-decoration: underline; }
 </style>
 </head>
 <body>
@@ -1751,6 +1761,11 @@ footer.foot {
   </div>
 
   <footer class="foot">
+    <nav class="foot-links">
+      <a href="tokushoho.html">特定商取引法に基づく表記</a>
+      <a href="privacy.html">プライバシーポリシー</a>
+      <a href="terms.html">利用規約</a>
+    </nav>
     ※本アプリの試算は簡易的なものであり、将来の運用成果を保証するものではありません。<br>
     投資は自己判断・自己責任で行ってください。
   </footer>
@@ -1782,6 +1797,12 @@ footer.foot {
     </ul>
     <button class="btn-buy" id="btn-fake-pay" style="margin-bottom:10px;">¥300 を支払う(仮) →</button>
     <button class="btn-text" id="btn-close-modal" style="display:block; margin:0 auto;">閉じる</button>
+    <!-- 購入の直前に、規約類を確認できるようにしておく -->
+    <nav class="foot-links" style="margin:16px 0 0; border-bottom:none; padding-bottom:0;">
+      <a href="tokushoho.html" target="_blank" rel="noopener">特定商取引法に基づく表記</a>
+      <a href="privacy.html" target="_blank" rel="noopener">プライバシーポリシー</a>
+      <a href="terms.html" target="_blank" rel="noopener">利用規約</a>
+    </nav>
     <div class="demo-note">ここに将来 Stripe 等の決済ボタンが入ります</div>
   </div>
 </div>
