@@ -1795,7 +1795,7 @@ footer.foot {
       <li>今月からやることリスト(5ステップ)</li>
       <li>SNS用の診断結果カード画像</li>
     </ul>
-    <button class="btn-buy" id="btn-fake-pay" style="margin-bottom:10px;">¥300 を支払う(仮) →</button>
+    <button class="btn-buy" id="btn-pay" style="margin-bottom:10px;">¥300 を支払う →</button>
     <button class="btn-text" id="btn-close-modal" style="display:block; margin:0 auto;">閉じる</button>
     <!-- 購入の直前に、規約類を確認できるようにしておく -->
     <nav class="foot-links" style="margin:16px 0 0; border-bottom:none; padding-bottom:0;">
@@ -1803,7 +1803,8 @@ footer.foot {
       <a href="privacy.html" target="_blank" rel="noopener">プライバシーポリシー</a>
       <a href="terms.html" target="_blank" rel="noopener">利用規約</a>
     </nav>
-    <div class="demo-note">ここに将来 Stripe 等の決済ボタンが入ります</div>
+    <!-- 文言は app.js の syncPayUi() が状態に合わせて書き換える -->
+    <div class="demo-note" id="pay-note">決済の準備中です。いまは料金は発生しません。</div>
   </div>
 </div>
 

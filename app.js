@@ -2,6 +2,40 @@
 'use strict';
 
 // ============================================================
+// Stripe 決済の設定
+//
+// 【このキーをここに書いてよい理由】
+//   pk_ で始まる「公開可能キー」は、ブラウザに配ることを前提に作られている。
+//   これだけでは決済の作成も返金も残高照会もできない。
+//   絶対にここに書いてはいけないのは sk_ で始まる「シークレットキー」のほう。
+//   そちらは Netlify に移したあと、サーバー側の環境変数に入れる。
+//
+// 【テストと本番の切り替え】
+//   mode を 'test' か 'live' にするだけで切り替わる。
+//   本番に切り替える前に、必ず live 側のキーとリンクを両方入れること。
+//
+// 【決済リンクの作り方】
+//   Stripe ダッシュボード → 「商品カタログ」→ 商品を作る → 「支払いリンク」を作成。
+//   作成時に、支払い後の遷移先を必ず次のURLにしておく。
+//     https://toshi-debut.github.io/?paid=1
+//   ここが空のあいだは、購入ボタンは動作確認用の動き(そのまま有料画面が開く)になる。
+// ============================================================
+const STRIPE = {
+  mode: 'test',
+  test: {
+    pk: 'pk_test_51UB4MQ1bSftT8sC8rpfAVDOSN4K7ZHjoi8HKTlpiLgZur8PpgadkZuUbbBD5Szt53kLNivBo6XAhqw9xKfMJUZwI00iCtrXknH',
+    link: '',       // ← テスト用の支払いリンク https://buy.stripe.com/test_xxxxx
+  },
+  live: {
+    pk: '',         // ← 本番の公開可能キー pk_live_xxxxx
+    link: '',       // ← 本番の支払いリンク https://buy.stripe.com/xxxxx
+  },
+};
+
+const stripeConf = () => STRIPE[STRIPE.mode] || { pk: '', link: '' };
+const payLink = () => stripeConf().link;
+
+// ============================================================
 // 共通ユーティリティ
 // ============================================================
 const $ = (id) => document.getElementById(id);
@@ -747,7 +781,7 @@ function renderInflation() {
 // 「試算する」ボタンから課金モーダルを開く
 document.addEventListener('click', (e) => {
   const btn = e.target.closest('[data-open-paywall]');
-  if (btn) openModal(modal, 'btn-fake-pay');
+  if (btn) openModal(modal, 'btn-pay');
 });
 
 function renderTopOverInsight(d) {
@@ -1555,6 +1589,7 @@ const modal = $('paywall-modal');
 // ダイアログを開くときは、閉じたあとに元のボタンへフォーカスを戻せるよう覚えておく
 let lastFocused = null;
 function openModal(el, focusId) {
+  if (el === modal) syncPayUi();        // 購入ボタンの文言を今の状態に合わせる
   lastFocused = document.activeElement;
   el.hidden = false;
   $(focusId)?.focus?.();
@@ -1565,7 +1600,7 @@ function closeModal(el) {
   lastFocused = null;
 }
 
-$('btn-open-paywall').addEventListener('click', () => openModal(modal, 'btn-fake-pay'));
+$('btn-open-paywall').addEventListener('click', () => openModal(modal, 'btn-pay'));
 $('btn-close-modal').addEventListener('click', () => closeModal(modal));
 modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(modal); });
 
@@ -1577,15 +1612,117 @@ document.addEventListener('keydown', (e) => {
   else if (!tip.hidden) tip.hidden = true;
 });
 
-$('btn-fake-pay').addEventListener('click', () => {
-  modal.hidden = true;
+// ============================================================
+// 決済(Stripe の支払いリンク方式)
+//
+// GitHub Pages にはサーバーが無いため、自前で決済画面を作れない。
+// そこで Stripe が用意する支払いページに一度移動し、
+// 支払いが終わったら ?paid=1 を付けてこのサイトに戻ってくる形にしている。
+//
+// ⚠️ 現状の弱点(必ず把握しておくこと)
+//   戻ってきたときの ?paid=1 を、ブラウザ側でしか確認できない。
+//   つまり URL に手で ?paid=1 を付ければ有料機能が開いてしまう。
+//   本格的に販売するときは Netlify に移し、サーバー側で Stripe に
+//   「本当に支払われたか」を問い合わせる処理を必ず足すこと。
+//   (README の「決済の方針」を参照)
+// ============================================================
+const RETURN_KEY = 'toshi-debut-return';   // 支払い中に診断内容を預けておく場所
+const PAID_KEY = 'toshi-debut-paid';       // 購入済みかどうか(この端末のブラウザのみ)
+
+// Stripe に移動すると画面がいったん離れるので、診断内容を持ち帰れるようにする
+function saveForReturn() {
+  try {
+    localStorage.setItem(RETURN_KEY, JSON.stringify({
+      v: SAVE_VERSION, at: Date.now(), living, values,
+      quizAnswers: quizAnswers.slice(), risk: selectedRisk,
+    }));
+  } catch (e) { /* プライベートモードなどで保存できないことがある */ }
+}
+
+function loadReturn() {
+  try {
+    const raw = localStorage.getItem(RETURN_KEY);
+    if (!raw) return null;
+    const s = JSON.parse(raw);
+    return s && s.v === SAVE_VERSION && s.living ? s : null;
+  } catch (e) { return null; }
+}
+
+function markPaid(on) {
+  try {
+    if (on) localStorage.setItem(PAID_KEY, '1');
+    else localStorage.removeItem(PAID_KEY);
+    localStorage.removeItem(RETURN_KEY);
+  } catch (e) { }
+}
+
+const wasPaid = () => {
+  try { return localStorage.getItem(PAID_KEY) === '1'; } catch (e) { return false; }
+};
+
+// 有料画面を開く
+function unlockPremium() {
   paid = true;
   renderSocial();               // 有料側のシェアボタンも用意する
   renderPortfolio(selectedRisk || 'balance');
   refreshSim();
   goScreen('screen-premium', 3);
   showTab('sim');
+}
+
+// 購入ボタンの文言を、状態に合わせて出し分ける
+function syncPayUi() {
+  const btn = $('btn-pay');
+  const note = $('pay-note');
+  if (paid || wasPaid()) {
+    btn.textContent = '購入済み — 詳細プランを開く →';
+    note.textContent = 'この端末では購入済みです。追加の料金はかかりません。';
+  } else if (payLink()) {
+    btn.textContent = '¥300 を支払う →';
+    note.textContent = 'クレジットカード / PayPay に対応。Stripe の安全な決済画面に移動します。';
+  } else {
+    btn.textContent = '¥300 を支払う(準備中) →';
+    note.textContent = '決済の準備中です。いまは料金は発生しません。';
+  }
+}
+
+$('btn-pay').addEventListener('click', () => {
+  modal.hidden = true;
+
+  // 購入済み、または決済リンクが未設定のあいだは、そのまま開く
+  if (paid || wasPaid() || !payLink()) { unlockPremium(); return; }
+
+  saveForReturn();
+  location.href = payLink();       // Stripe の決済画面へ
 });
+
+// --- 支払いから戻ってきたとき(?paid=1) ---
+function resumeAfterPay() {
+  const s = loadReturn();
+  markPaid(true);
+
+  if (!s) {
+    // 別の端末やブラウザで戻ってきた場合。診断内容が無いので入力からやり直してもらう
+    paid = true;
+    showFormAlert('お支払いありがとうございます。診断内容が見つからなかったため、'
+      + 'もう一度入力してください。<strong>詳細プランはこのまま開けます。</strong>');
+    goScreen('screen-input', 1);
+    return;
+  }
+
+  saveEnabled = false;                       // 復元中は途中データを上書きしない
+  Object.keys(values).forEach((k) => { values[k] = 0; });
+  Object.assign(values, s.values || {});
+  (s.quizAnswers || []).forEach((a, i) => { quizAnswers[i] = a; });
+  quizIndex = QUIZ.length - 1;
+  selectedRisk = s.risk || null;
+  setLiving(s.living);
+  saveEnabled = true;
+
+  diagnose();
+  if (quizAnswers.every((a) => a !== null)) finishQuiz();
+  unlockPremium();
+}
 
 $('btn-back-result').addEventListener('click', () => goScreen('screen-result', 2));
 
@@ -2530,11 +2667,21 @@ function openReviewCheckout() {
   diagnose();                                // 結果画面を作る
   finishQuiz();                              // タイプ判定まで済ませる
   showStep(5, { scroll: false });            // ⑤ 詳しいプラン(購入の案内)
-  openModal(modal, 'btn-fake-pay');          // 購入画面を開く
+  openModal(modal, 'btn-pay');          // 購入画面を開く
 }
 
 function reviewParam() {
   try { return new URLSearchParams(location.search).get('review'); } catch (e) { return null; }
+}
+
+function paidParam() {
+  try { return new URLSearchParams(location.search).get('paid') === '1'; } catch (e) { return false; }
+}
+
+// 支払い後の ?paid=1 を URL から消す。
+// 残しておくと、リロードのたびに購入直後の扱いになり、他人に渡せる形にもなってしまう
+function cleanUrl() {
+  try { history.replaceState(history.state, '', location.pathname); } catch (e) { }
 }
 
 // ============================================================
@@ -2547,7 +2694,10 @@ renderQuiz();
 renderProgress();
 try { history.replaceState({ screen: 'screen-intro', step: 0 }, ''); } catch (e) { }
 
-if (reviewParam() === 'checkout') {
+if (paidParam()) {
+  resumeAfterPay();              // Stripe の決済から戻ってきた
+  cleanUrl();
+} else if (reviewParam() === 'checkout') {
   openReviewCheckout();          // 審査用の直行リンク。再開ダイアログは出さない
 } else {
   askResume();
