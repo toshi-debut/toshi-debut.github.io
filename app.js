@@ -2492,6 +2492,52 @@ function askResume() {
 }
 
 // ============================================================
+// 審査用の直行リンク  ?review=checkout
+//
+// Stripe や PayPay の加盟店審査では、審査担当者が実際に購入画面まで
+// たどり着けることを確認される。通常は「住まいの選択 → 収支の入力 →
+// 5問の診断」を全部こなさないと購入画面が出てこないため、
+// 審査担当者がここで詰まってしまう。
+//
+// そこで、サンプルの金額と回答をあらかじめ入れた状態で購入画面を開く
+// 入口を用意した。URL の末尾に ?review=checkout を付けたときだけ動く。
+//
+//   https://toshi-debut.github.io/?review=checkout
+//
+// ・通常の利用者はこのURLを踏まないので、診断の体験には影響しない
+// ・有料機能が無料で開くわけではない(購入画面が開くだけ)
+// ・審査が終わっても消さなくてよい。決済の動作確認にそのまま使える
+// ============================================================
+const REVIEW_SAMPLE = {
+  living: 'home',
+  values: {
+    'inc-work': 60000, 'inc-allow': 20000,
+    home: 3000, phone: 1500, subs: 1500, food: 10000,
+    party: 7000, cafe: 5000, transit: 9000, hobby: 6000,
+  },
+  answers: [1, 1, 1, 1, 1],       // すべて真ん中の回答 → バランス型になる
+};
+
+function openReviewCheckout() {
+  saveEnabled = false;                       // サンプルを途中データとして保存しない
+  Object.keys(values).forEach((k) => { values[k] = 0; });
+  Object.assign(values, REVIEW_SAMPLE.values);
+  REVIEW_SAMPLE.answers.forEach((a, i) => { quizAnswers[i] = a; });
+  quizIndex = QUIZ.length - 1;
+  setLiving(REVIEW_SAMPLE.living);           // 入力欄を金額つきで組み立てる
+  saveEnabled = true;
+
+  diagnose();                                // 結果画面を作る
+  finishQuiz();                              // タイプ判定まで済ませる
+  showStep(5, { scroll: false });            // ⑤ 詳しいプラン(購入の案内)
+  openModal(modal, 'btn-fake-pay');          // 購入画面を開く
+}
+
+function reviewParam() {
+  try { return new URLSearchParams(location.search).get('review'); } catch (e) { return null; }
+}
+
+// ============================================================
 // 初期表示
 // ============================================================
 setMonthly(10000);
@@ -2500,4 +2546,9 @@ renderGoal();
 renderQuiz();
 renderProgress();
 try { history.replaceState({ screen: 'screen-intro', step: 0 }, ''); } catch (e) { }
-askResume();
+
+if (reviewParam() === 'checkout') {
+  openReviewCheckout();          // 審査用の直行リンク。再開ダイアログは出さない
+} else {
+  askResume();
+}
