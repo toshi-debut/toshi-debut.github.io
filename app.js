@@ -1435,7 +1435,7 @@ function renderTypeAvg() {
 // file:// で開いている場合は端末のパス(ユーザー名を含む)が漏れるので使わない。
 // ============================================================
 const SHARE_SITE = {
-  url: 'https://haru-1025.github.io/toshi-debut-shindan/',
+  url: 'https://toshi-debut.github.io/',
   hashtag: '投資デビュー診断',
 };
 
