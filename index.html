@@ -671,6 +671,15 @@ p.section-sub { font-size: 12.5px; color: var(--ink-3); margin: 0 0 4px; line-he
 }
 .cmp-total { border-bottom: none; }
 .cmp-total .name { font-weight: 800; }
+.cmp-group {
+  font-size: 11px; font-weight: 800; color: var(--ink-3);
+  letter-spacing: .06em; margin: 14px 0 8px;
+}
+.cmp-group:first-child { margin-top: 4px; }
+.source-note {
+  font-size: 10.5px; line-height: 1.75; color: var(--ink-3);
+  margin: 14px 0 0; padding-top: 12px; border-top: 1px solid var(--line);
+}
 
 /* 狭い画面では、進捗バーの中身が窮屈にならないようドットを省く
    (「3/5」の数字は残るので、どこにいるかは分かる) */
@@ -1280,10 +1289,16 @@ footer.foot {
         無理なく続けられる毎月の金額がわかります。
       </p>
 
+      <!-- 【一時的に非表示】診断人数カウンター
+           実際の利用者数が集計できるようになったら、このコメントを外して復活させる。
+           数字は app.js の DIAGNOSED で管理している。
+           架空の実績を事実のように見せると景品表示法(優良誤認)に触れるため、
+           実データが無いあいだは出さない。
       <div class="counter reveal" id="counter-box">
         <span class="ci">👥</span>
         <span>すでに <strong><span id="counter-num">0</span>人</strong> の大学生が診断済み</span>
       </div>
+      -->
 
       <div class="value-badge reveal">
         <span class="vi">💰</span>
@@ -1402,18 +1417,14 @@ footer.foot {
       </div>
 
       <div class="card reveal">
-        <h2 class="section-title"><span class="ic">👀</span>見落としがちな支出</h2>
-        <p class="section-sub">サブスク・カフェ/コンビニ・交遊費の合計です</p>
-        <div id="insight-leak"></div>
-        <div id="insight-top"></div>
-      </div>
-
-      <div class="card reveal">
         <h2 class="section-title"><span class="ic">📊</span>同世代の平均と比べると</h2>
-        <p class="section-sub" id="cmp-sub">濃いバーがあなた、縦線が大学生の平均的な金額(目安)です</p>
+        <p class="section-sub" id="cmp-sub">濃いバーがあなた、縦線が大学生の平均的な金額です</p>
         <div id="cmp-list" style="margin-top:16px;"></div>
-        <p style="font-size:11px; color:var(--ink-3); margin:4px 0 0;">
-          ※平均額はサンプル用の参考値です。実際の金額は地域や生活スタイルで大きく変わります。
+        <div id="insight-top"></div>
+        <p class="source-note">
+          出典:全国大学生活協同組合連合会「第60回学生生活実態調査」(2024年度・有効回答11,590人)<br>
+          アプリの入力項目に合わせて費目を分けている箇所があります(下の「項目ごとに見る」に内訳)。
+          実際の金額は地域や生活スタイルで大きく変わります。
         </p>
       </div>
 
@@ -1497,7 +1508,11 @@ footer.foot {
         </details>
       </div>
 
-      <!-- 9. 社会的証明 -->
+      <!-- 【一時的に非表示】利用者の声 + 診断人数カウンター
+           実際のレビューが集まったら、このコメントを外して復活させる。
+           中身は app.js の REVIEWS 配列を書き換えるだけで差し替えられる。
+           架空のレビューを実績として見せると景品表示法(優良誤認)に触れるため、
+           実データが無いあいだは出さない。
       <div class="card reveal" id="reviews-card" hidden>
         <h2 class="section-title"><span class="ic">💬</span>利用者の声</h2>
         <p class="section-sub" id="reviews-sub">実際に診断を受けた人からのコメントです</p>
@@ -1505,6 +1520,7 @@ footer.foot {
         <div class="reviews" id="reviews-list"></div>
         <p class="reviews-note">※現在はサンプルの内容を表示しています。</p>
       </div>
+      -->
 
       <div class="card reveal" id="faq-card" hidden>
         <h2 class="section-title"><span class="ic">❓</span>よくある質問</h2>
@@ -1534,7 +1550,7 @@ footer.foot {
 
             <div class="price-box">
               <div class="pb-amount"><span class="cur">¥</span><span class="num">300</span></div>
-              <div class="pb-like"><span class="e">🥤</span>コンビニのドリンク1本分</div>
+              <div class="pb-like"><span class="e">☕</span>カフェのコーヒー1杯分</div>
               <div class="pb-tags">
                 <span class="tg">買い切り</span>
                 <span class="tg">追加課金なし</span>

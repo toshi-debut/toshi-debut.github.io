@@ -100,35 +100,75 @@ function onEnterCommit(input, fn) {
 // living: 'alone'(一人暮らし) / 'home'(実家暮らし) / 'both'
 // avg は住まいで変わる場合 { alone, home } の形で持つ
 // ============================================================
+// ------------------------------------------------------------
+// 比較に使う平均額の出どころ
+//
+// 出典: 全国大学生活協同組合連合会「第60回学生生活実態調査」
+//       (2025年2月28日発表 / 2024年10〜11月調査 / 有効回答 11,590人)
+//
+//   自宅生   収入合計 68,370 / 支出合計 69,500(うち貯金・繰越金 18,360)
+//            食費14,340 住居費600 交通費9,850 教養娯楽費14,740
+//            書籍費1,450 勉学費1,020 日常費5,890 電話・通信費1,410 その他1,850
+//   下宿生   収入合計132,140 / 支出合計131,710(うち貯金・繰越金 14,250)
+//            食費26,110 住居費56,090 交通費5,050 教養娯楽費13,870
+//            書籍費1,500 勉学費1,300 日常費7,520 電話・通信費3,320 その他2,710
+//
+// 調査の費目とアプリの入力項目は一対一で対応しないため、以下の方針で割り当てた。
+//   ・そのまま使える費目(交通費・電話代・日常費など)は調査値をそのまま入れる
+//   ・1つの費目を複数項目に分ける場合(住居費→家賃+光熱費、食費→食費+カフェ、
+//     教養娯楽費→サブスク+交遊費+趣味)は、内訳を推定して合計が調査値と一致するようにした
+//     → 推定した金額には est: true を付けている
+//   ・アプリで聞いていない費目(書籍費・勉学費・その他、自宅生の日常費)は
+//     ユーザー側も入力しないので、公平に比べるため平均からも除いている
+// ------------------------------------------------------------
+
 const INCOME_ITEMS = [
-  { id: 'inc-work',  label: '働いて得た収入',   ph: '例: 60,000', note: 'アルバイト・インターン・業務委託などの手取り' },
-  { id: 'inc-allow', label: 'その他の収入',     ph: '例: 40,000', note: '仕送り・お小遣い・奨学金など' },
+  // 調査の「アルバイト」(自宅生 46,060 / 下宿生 37,540)
+  { id: 'inc-work',  label: '働いて得た収入',   avg: { alone: 37540, home: 46060 },
+    ph: { alone: '例: 37,000', home: '例: 46,000' },
+    note: 'アルバイト・インターン・業務委託などの手取り' },
+  // 自宅生: 小遣い10,580 + 奨学金9,940 + その他1,790 = 22,310
+  // 下宿生: 仕送り72,350 + 奨学金19,140 + その他3,110 = 94,600
+  { id: 'inc-allow', label: 'その他の収入',     avg: { alone: 94600, home: 22310 },
+    ph: { alone: '例: 94,000', home: '例: 22,000' },
+    note: '仕送り・お小遣い・奨学金など' },
 ];
 
 const EXPENSE_ITEMS = [
-  { id: 'rent',    group: 'fixed', living: 'alone', label: '家賃',                    avg: 53000, ph: '例: 60,000', note: '管理費・共益費も含めた金額' },
-  { id: 'utility', group: 'fixed', living: 'alone', label: '光熱費(電気・ガス・水道)', avg: 9000,  ph: '例: 9,000' },
-  { id: 'home',    group: 'fixed', living: 'home',  label: '家に入れているお金',       avg: 10000, ph: '例: 10,000', note: '実家に渡している生活費。渡していなければ 0 のままでOK' },
-  { id: 'phone',   group: 'fixed', living: 'both',  label: '通信費(スマホ)',           avg: 6500,  ph: '例: 7,000' },
-  { id: 'subs',    group: 'fixed', living: 'both',  label: 'サブスク',                 avg: 1800,  ph: '例: 2,500',  note: 'Netflix・Spotify・Amazonプライム・ジムなどの合計' },
+  // 住居費(下宿生 56,090)を家賃と光熱費に分けた。内訳は推定で、合計は調査値と一致する
+  { id: 'rent',    group: 'fixed', living: 'alone', label: '家賃',                    avg: 47000, est: true, ph: '例: 47,000', note: '管理費・共益費も含めた金額' },
+  { id: 'utility', group: 'fixed', living: 'alone', label: '光熱費(電気・ガス・水道)', avg: 9090,  est: true, ph: '例: 9,000' },
+  // 自宅生の住居費 600円(実家に入れているお金にあたる)
+  { id: 'home',    group: 'fixed', living: 'home',  label: '家に入れているお金',       avg: 600,   ph: '例: 10,000', note: '実家に渡している生活費。渡していなければ 0 のままでOK' },
+  // 電話・通信費(自宅生 1,410 / 下宿生 3,320)
+  { id: 'phone',   group: 'fixed', living: 'both',  label: '通信費(スマホ)',           avg: { alone: 3320, home: 1410 }, ph: '例: 3,500' },
+  // 教養娯楽費の一部と推定(調査に「サブスク」という費目はない)
+  { id: 'subs',    group: 'fixed', living: 'both',  label: 'サブスク',                 avg: { alone: 1800, home: 1500 }, est: true, ph: '例: 1,800', note: 'Netflix・Spotify・Amazonプライム・ジムなどの合計' },
 
-  { id: 'food',    group: 'var',   living: 'both',  label: '食費',                     avg: { alone: 26000, home: 13000 }, ph: '例: 25,000',
+  // 食費(自宅生 14,340 / 下宿生 26,110)を「食費」と「カフェ・コンビニ」に分けた(内訳は推定)
+  { id: 'food',    group: 'var',   living: 'both',  label: '食費',                     avg: { alone: 20000, home: 9340 }, est: true, ph: { alone: '例: 20,000', home: '例: 9,000' },
     note: { alone: '自炊・学食・外食の合計', home: '自分で払っている分だけ(学食・外食・買い食いなど)' } },
-  { id: 'party',   group: 'var',   living: 'both',  label: '交遊費・飲み会',            avg: 12000, ph: '例: 15,000', note: '飲み会・カラオケ・旅行の積立など' },
-  { id: 'cafe',    group: 'var',   living: 'both',  label: 'カフェ・コンビニ',          avg: 8000,  ph: '例: 10,000', note: '1回500円でも週5回で月1万円になります' },
-  { id: 'transit', group: 'var',   living: 'both',  label: '交通費',                   avg: { alone: 4500, home: 8000 }, ph: '例: 5,000',
+  // 教養娯楽費の一部と推定
+  { id: 'party',   group: 'var',   living: 'both',  label: '交遊費・飲み会',            avg: { alone: 6000, home: 7000 }, est: true, ph: '例: 6,000', note: '飲み会・カラオケ・旅行の積立など' },
+  // 食費から分けた分(推定)
+  { id: 'cafe',    group: 'var',   living: 'both',  label: 'カフェ・コンビニ',          avg: { alone: 6110, home: 5000 }, est: true, ph: '例: 6,000', note: '1回500円でも週5回で月1万円になります' },
+  // 交通費(自宅生 9,850 / 下宿生 5,050)
+  { id: 'transit', group: 'var',   living: 'both',  label: '交通費',                   avg: { alone: 5050, home: 9850 }, ph: { alone: '例: 5,000', home: '例: 9,800' },
     note: { alone: '定期券・電車代など', home: '通学定期は自宅生のほうが高くなりがちです' } },
-  { id: 'daily',   group: 'var',   living: 'alone', label: '日用品・雑費',              avg: 4000,  ph: '例: 4,000',  note: '洗剤・ティッシュ・消耗品など' },
-  { id: 'hobby',   group: 'var',   living: 'both',  label: '趣味・娯楽',                avg: 9000,  ph: '例: 8,000',  note: '服・美容・ゲーム・推し活など' },
+  // 日常費(下宿生 7,520)。自宅生は入力項目自体を出していない
+  { id: 'daily',   group: 'var',   living: 'alone', label: '日用品・雑費',              avg: 7520,  ph: '例: 7,500',  note: '洗剤・ティッシュ・消耗品など' },
+  // 教養娯楽費からサブスクと交遊費を引いた残り
+  { id: 'hobby',   group: 'var',   living: 'both',  label: '趣味・娯楽',                avg: { alone: 6070, home: 6240 }, est: true, ph: '例: 6,000',  note: '服・美容・ゲーム・推し活など' },
 ];
 
-// 「使っている自覚が薄い」3項目
+// 支出のクセ(タグ)の判定に使う「金額を意識しにくい」3項目
 const LEAK_IDS = ['subs', 'cafe', 'party'];
 const itemById = (id) => EXPENSE_ITEMS.find((it) => it.id === id);
 
 const forLiving = (v, l) => (v && typeof v === 'object' ? v[l] : v);
 const avgOf = (it) => forLiving(it.avg, living) || 0;
 const noteOf = (it) => forLiving(it.note, living) || '';
+const phOf = (it) => forLiving(it.ph, living) || '';
 const activeItems = () => EXPENSE_ITEMS.filter((it) => it.living === 'both' || it.living === living);
 
 // ============================================================
@@ -292,7 +332,7 @@ function fieldHtml(it) {
     <div class="field">
       <label for="${it.id}">${it.label}${note}</label>
       <div class="input-yen">
-        <input type="text" inputmode="numeric" autocomplete="off" id="${it.id}" placeholder="${it.ph}" value="${v}">
+        <input type="text" inputmode="numeric" autocomplete="off" id="${it.id}" placeholder="${phOf(it)}" value="${v}">
       </div>
     </div>`;
 }
@@ -390,11 +430,9 @@ function diagnose() {
 
   $('result-comment').textContent = commentFor(d);
   renderBuffer(d);
-  renderLeakInsight(d);
   renderTopOverInsight(d);
   renderComparison(d);
   linkifyTerms($('result-comment'));
-  linkifyTerms($('insight-leak'));
 
   setMonthly(Math.max(1000, Math.round(d.surplus / 1000) * 1000));
 
@@ -465,7 +503,7 @@ function renderBuffer(d) {
 function commentFor(d) {
   const x = d.surplus;
   if (d.income === 0) return 'まずは収入(アルバイト・仕送り・奨学金など)を入力してみましょう。';
-  if (x <= 0) return '今のままだと投資に回せる分が残りません。まずは下の「見落としがちな支出」から削れそうな項目を探してみましょう。';
+  if (x <= 0) return '今のままだと投資に回せる分が残りません。まずは下の「同世代の平均と比べると」で、平均より多く使っている項目を探してみましょう。';
   if (x < 5000) return `${num(x)}円あれば、月1,000円からのNISA積立を始められます。金額よりも「毎月続ける習慣」を作るのが最初の目標です。`;
   if (x < 15000) return `${num(x)}円は、学生が無理なく積み立てられる現実的な金額です。この額を20年続けるだけで、結果はかなり変わります。`;
   if (x < 30000) return `${num(x)}円はしっかり投資に回せる余裕額です。全額を投資に回さず、一部は突発的な出費用に現金で残しておくと安心です。`;
@@ -712,30 +750,6 @@ document.addEventListener('click', (e) => {
   if (btn) openModal(modal, 'btn-fake-pay');
 });
 
-function renderLeakInsight(d) {
-  const leak = LEAK_IDS.reduce((s, id) => s + d.spend[id], 0);
-  if (leak === 0) {
-    $('insight-leak').innerHTML = `
-      <div class="insight">
-        <div class="h">まだ入力されていません</div>
-        <div class="b">サブスク・カフェ/コンビニ・交遊費は、金額を意識しにくい代表格です。ざっくりでいいので入れてみてください。</div>
-      </div>`;
-    return;
-  }
-  const half = Math.round(leak / 2);
-  const fv20 = futureValue(half, 0.05, 20);
-  const detail = LEAK_IDS.filter((id) => d.spend[id] > 0)
-    .map((id) => `${itemById(id).label} ${num(d.spend[id])}円`).join(' / ');
-
-  $('insight-leak').innerHTML = `
-    <div class="insight">
-      <div class="h">この3項目の合計は 月 ${num(leak)}円 = 年 ${num(leak * 12)}円</div>
-      <div class="b" style="font-size:12px; color:var(--ink-3);">${detail}</div>
-      <span class="big">半分に減らせば 年 ${num(half * 12)}円</span>
-      <div class="b">浮いた月${num(half)}円を年5%で20年積み立てると <strong>${manEn(fv20)}</strong>。コーヒー1杯を我慢する話が、20年後にはこの差になります。</div>
-    </div>`;
-}
-
 function renderTopOverInsight(d) {
   const overs = d.items
     .filter((it) => d.spend[it.id] > 0 && d.spend[it.id] > avgOf(it))
@@ -770,52 +784,64 @@ function verdict(mine, avg) {
   return { cls: 'pill-good', ic: '✓', text: '堅実' };
 }
 
+// 収入は「多いほど良い」ので、支出とは別の言い方をする
+function incomeVerdict(mine, avg) {
+  const r = mine / avg;
+  if (r >= 1.15) return { cls: 'pill-good', ic: '✓', text: '平均より多い' };
+  if (r >= 0.85) return { cls: 'pill-mid', ic: '●', text: '平均並み' };
+  return { cls: 'pill-mid', ic: '●', text: '平均より少ない' };
+}
+
+// 1行ぶんの比較バーを作る
+function cmpRow(label, mine, avg, v, extraClass) {
+  const scale = Math.max(mine, avg) * 1.25 || 1;
+  const pill = v ? `<span class="pill ${v.cls}"><span class="ic">${v.ic}</span>${v.text}</span>` : '';
+  return `
+    <div class="cmp-row${extraClass ? ' ' + extraClass : ''}">
+      <div class="cmp-head"><span class="name">${label}</span>${pill}</div>
+      <div class="cmp-track">
+        <div class="cmp-fill" style="width:${Math.min(100, (mine / scale) * 100)}%"></div>
+        <div class="cmp-avg" style="left:${Math.min(100, (avg / scale) * 100)}%"></div>
+      </div>
+      <div class="cmp-foot">
+        <span class="mine">あなた ${num(mine)}円</span>
+        <span>平均 ${num(avg)}円</span>
+      </div>
+    </div>`;
+}
+
 function renderComparison(d) {
-  const rows = d.items.map((it) => {
+  const expenseRows = d.items.map((it) => {
     const mine = d.spend[it.id];
     const avg = avgOf(it);
-    const scale = Math.max(mine, avg) * 1.25 || 1;
-    const v = mine > 0 && avg > 0 ? verdict(mine, avg) : null;
-    const pill = v ? `<span class="pill ${v.cls}"><span class="ic">${v.ic}</span>${v.text}</span>` : '';
-    return `
-      <div class="cmp-row">
-        <div class="cmp-head"><span class="name">${it.label}</span>${pill}</div>
-        <div class="cmp-track">
-          <div class="cmp-fill" style="width:${Math.min(100, (mine / scale) * 100)}%"></div>
-          <div class="cmp-avg" style="left:${Math.min(100, (avg / scale) * 100)}%"></div>
-        </div>
-        <div class="cmp-foot">
-          <span class="mine">あなた ${num(mine)}円</span>
-          <span>平均 ${num(avg)}円</span>
-        </div>
-      </div>`;
+    return cmpRow(it.label, mine, avg, mine > 0 && avg > 0 ? verdict(mine, avg) : null);
   }).join('');
 
+  const incomeRows = INCOME_ITEMS.map((it) => {
+    const mine = values[it.id];
+    const avg = avgOf(it);
+    return cmpRow(it.label, mine, avg, mine > 0 && avg > 0 ? incomeVerdict(mine, avg) : null);
+  }).join('');
+
+  const avgIncome = INCOME_ITEMS.reduce((s, it) => s + avgOf(it), 0);
   const avgTotal = d.items.reduce((s, it) => s + avgOf(it), 0);
-  const v = verdict(d.total, avgTotal);
 
   // スマホで縦に長くなりすぎないよう、合計だけ先に見せて
   // 項目ごとの内訳は折りたたんでおく
-  $('cmp-list').innerHTML = `
-    <div class="cmp-row cmp-total">
-      <div class="cmp-head">
-        <span class="name">支出の合計</span>
-        <span class="pill ${v.cls}"><span class="ic">${v.ic}</span>${v.text}</span>
-      </div>
-      <div class="cmp-track">
-        <div class="cmp-fill" style="width:${Math.min(100, (d.total / (Math.max(d.total, avgTotal) * 1.25 || 1)) * 100)}%"></div>
-        <div class="cmp-avg" style="left:${Math.min(100, (avgTotal / (Math.max(d.total, avgTotal) * 1.25 || 1)) * 100)}%"></div>
-      </div>
-      <div class="cmp-foot">
-        <span class="mine">あなた ${num(d.total)}円</span>
-        <span>平均 ${num(avgTotal)}円</span>
-      </div>
-    </div>
+  $('cmp-list').innerHTML =
+    cmpRow('収入の合計', d.income, avgIncome,
+      d.income > 0 ? incomeVerdict(d.income, avgIncome) : null, 'cmp-total') +
+    cmpRow('支出の合計', d.total, avgTotal,
+      d.total > 0 ? verdict(d.total, avgTotal) : null, 'cmp-total') + `
     <details class="fold">
       <summary>項目ごとに見る ▾</summary>
-      ${rows}
+      <div class="cmp-group">収入</div>
+      ${incomeRows}
+      <div class="cmp-group">支出</div>
+      ${expenseRows}
     </details>`;
-  $('cmp-sub').textContent = `濃いバーがあなた、縦線が${LIVING_LABEL[d.living]}の大学生の平均的な金額(目安)です`;
+  $('cmp-sub').textContent =
+    `濃いバーがあなた、縦線が${LIVING_LABEL[d.living]}の大学生の平均額です`;
 }
 
 $('btn-diagnose').addEventListener('click', diagnose);
@@ -997,7 +1023,6 @@ function renderTypeCard(key, score, opts) {
   renderSocial();               // タイプが決まってからでないと文面が作れない
   $('lock-type').textContent = per.name;
   renderPeek(p);
-  renderReviews();              // 課金の直前に利用者の声を出す
   renderFaq();
   $('paywall-zone').hidden = false;
 
@@ -1200,7 +1225,6 @@ $('btn-quiz-retry').addEventListener('click', () => {
   $('social-note-free').hidden = true;
   $('social-note-paid').hidden = true;
   $('faq-card').hidden = true;
-  $('reviews-card').hidden = true;
   $('paywall-zone').hidden = true;
   renderQuiz();
   saveProgress();           // 受け直しはやり直しなので、また途中データとして保存する
@@ -1233,6 +1257,13 @@ function renderPortfolio(key) {
   renderTodo();
 }
 
+/* 【一時的に無効】診断人数カウンター
+   実際の利用者数を集計できるようになったら、このコメントを外して復活させる。
+   復活させるときは index.html 側のコメントアウトも戻し、
+   初期表示の renderCounter() / renderReviews() 内の renderCounterInline() も戻すこと。
+   架空の実績を事実のように見せると景品表示法(優良誤認)に触れるため、
+   実データが無いあいだは出さない。
+
 // ============================================================
 // 診断人数カウンター
 // 実際の利用者数が取れるようになったら DIAGNOSED を書き換える
@@ -1255,6 +1286,8 @@ function renderCounter() {
 function renderCounterInline() {
   countUp($('counter-num-2'), diagnosedCount(), 900);
 }
+
+*/
 
 // ============================================================
 // よくある質問(FAQ)
@@ -1301,13 +1334,17 @@ function renderFaq() {
 }
 
 // ============================================================
-// 同じタイプの人の平均データ(無料の締め・有料への導線)
+// タイプごとの積立額の目安(無料の締め・有料への導線)
 //
-// 数値はすべてダミー。実データが取れたらここを差し替える。
-// avg   : 平均して月いくら投資に回しているか
-// mix   : 内訳(有料で見せる)
-// plan  : このタイプがよく選ぶ投資プラン(有料で見せる)
-// years : 続けている平均期間(有料で見せる)
+// ここは「実際の利用者がいくら投資しているか」という統計ではない。
+// 集計できる利用者データが無い以上、実績のように見せると
+// 景品表示法(優良誤認)に触れるため、タイプの考え方から決めた
+// 「目安額」として出している。実データが取れたら統計に差し替えてよい。
+//
+// avg   : このタイプの積立額の目安
+// mix   : 投資と現金の配分の目安(有料で見せる)
+// plan  : このタイプ向けの投資プラン(有料で見せる)
+// years : 想定する積立期間(有料で見せる)
 // ============================================================
 const TYPE_STATS = {
   'stable-low':   { avg: 3200,  mix: '積立 70% / 現金 30%', plan: '全世界株式インデックス1本', years: '1年2ヶ月' },
@@ -1333,20 +1370,20 @@ function renderTypeAvg() {
   let cls, icon, comment;
   if (near) {
     cls = 'same'; icon = '⚖️';
-    comment = `あなたは同じタイプの平均と<strong>ほぼ同じ</strong>です。周りと同じペースで始められる位置にいます。`;
+    comment = `あなたの余裕額は、このタイプの目安と<strong>ほぼ同じ</strong>です。無理のないペースで始められる位置にいます。`;
   } else if (diff > 0) {
     cls = 'over'; icon = '📈';
-    comment = `あなたは平均より <strong>月${num(diff)}円 多い</strong>です。` +
-      `そのぶん早く増やせる位置にいますが、金額を上げるより<strong>続けること</strong>のほうが結果に効きます。`;
+    comment = `あなたの余裕額は目安より <strong>月${num(diff)}円 多い</strong>です。` +
+      `そのぶん早く増やせますが、金額を上げるより<strong>続けること</strong>のほうが結果に効きます。`;
   } else {
     cls = 'under'; icon = '🌱';
-    comment = `あなたは平均より <strong>月${num(-diff)}円 少ない</strong>です。` +
-      `ただし平均に合わせる必要はありません。無理な金額にすると途中でやめることになり、そのほうが損になります。`;
+    comment = `あなたの余裕額は目安より <strong>月${num(-diff)}円 少ない</strong>です。` +
+      `ただし目安に合わせる必要はありません。無理な金額にすると途中でやめることになり、そのほうが損になります。`;
   }
 
   $('typeavg-card').innerHTML = `
-    <h2 class="section-title"><span class="ic">📊</span>同じタイプの人は、どうしている?</h2>
-    <p class="section-sub">あなたと同じ<strong>${per.name}</strong>の人のデータです</p>
+    <h2 class="section-title"><span class="ic">📊</span>このタイプの目安と比べると</h2>
+    <p class="section-sub"><strong>${per.name}</strong>に向けた、毎月の積立額の目安です</p>
     <div class="ta-hero">
       <div class="ta-box you">
         <div class="k">あなたが回せる額</div>
@@ -1354,7 +1391,7 @@ function renderTypeAvg() {
       </div>
       <span class="ta-vs">VS</span>
       <div class="ta-box avg">
-        <div class="k">同じタイプの平均</div>
+        <div class="k">このタイプの目安</div>
         <div class="v">${num(st.avg)}<small>円</small></div>
       </div>
     </div>
@@ -1362,10 +1399,10 @@ function renderTypeAvg() {
 
     <div class="locked mini">
       <div class="locked-peek" aria-hidden="true">
-        <div class="peek-title">${per.name}の平均的な内訳</div>
+        <div class="peek-title">${per.name}の配分の目安</div>
         <div class="peek-line"><span class="lb">投資と現金の比率</span><span class="vl">${st.mix}</span></div>
-        <div class="peek-line"><span class="lb">よく選ばれている投資プラン</span><span class="vl">${st.plan}</span></div>
-        <div class="peek-line"><span class="lb">続けている平均期間</span><span class="vl">${st.years}</span></div>
+        <div class="peek-line"><span class="lb">このタイプ向けの投資プラン</span><span class="vl">${st.plan}</span></div>
+        <div class="peek-line"><span class="lb">想定する積立期間</span><span class="vl">${st.years}</span></div>
         <div class="peek-chart" style="margin-top:14px;">
           <i style="height:38%"></i><i style="height:52%"></i><i style="height:61%"></i>
           <i style="height:74%"></i><i style="height:88%"></i><i style="height:100%"></i>
@@ -1373,18 +1410,19 @@ function renderTypeAvg() {
       </div>
       <div class="locked-overlay">
         <div class="lockic">🔒</div>
-        <h3>もっと詳しい内訳を見る</h3>
-        <div class="sub">同じ<strong>${per.name}</strong>の人が実際にどう投資しているか</div>
+        <h3>もっと詳しい中身を見る</h3>
+        <div class="sub"><strong>${per.name}</strong>に合わせた配分とプラン</div>
         <ul class="unlock-list">
-          <li>投資に回している金額の内訳(積立と現金の比率)</li>
-          <li>このタイプがよく選んでいる投資プランと商品名</li>
+          <li>投資と現金をどう分けるかの目安</li>
+          <li>このタイプ向けの投資プランと商品名</li>
           <li>あなたの金額に合わせた積立シミュレーション</li>
         </ul>
         <button class="btn-unlock-mini" data-open-paywall>¥300で全部見る →</button>
       </div>
     </div>
-    <p style="font-size:11px; color:var(--ink-3); margin:12px 0 0;">
-      ※平均値はサンプル用の参考値です。実際の利用者データではありません。
+    <p class="source-note">
+      ※この目安額は、タイプごとの考え方をもとに設定した参考値です。
+      実際の利用者を集計した統計ではありません。
     </p>`;
   $('typeavg-card').hidden = false;
 }
@@ -1470,6 +1508,12 @@ document.addEventListener('click', (e) => {
   shareToInstagram(btn.closest('#social-paid') ? 'social-note-paid' : 'social-note-free');
 });
 
+/* 【一時的に無効】利用者の声
+   実際のレビューが集まったら、このコメントを外して復活させる。
+   REVIEWS 配列を書き換えるだけで差し替えられる(名前・属性・星・コメント)。
+   復活させるときは index.html 側のコメントアウトと、
+   renderTypeCard() の中の renderReviews() 呼び出しも戻すこと。
+
 // ============================================================
 // 利用者の声
 // 実際の声に差し替えるときは、この配列を書き換えるだけでよい
@@ -1500,6 +1544,8 @@ function renderReviews() {
   $('reviews-card').hidden = false;
   renderCounterInline();
 }
+
+*/
 
 // ============================================================
 // 課金導線(ダミー)
@@ -2452,7 +2498,6 @@ setMonthly(10000);
 renderTodo();
 renderGoal();
 renderQuiz();
-renderCounter();
 renderProgress();
 try { history.replaceState({ screen: 'screen-intro', step: 0 }, ''); } catch (e) { }
 askResume();
