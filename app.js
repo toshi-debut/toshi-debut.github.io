@@ -24,7 +24,7 @@ const STRIPE = {
   mode: 'test',
   test: {
     pk: 'pk_test_51UB4MQ1bSftT8sC8rpfAVDOSN4K7ZHjoi8HKTlpiLgZur8PpgadkZuUbbBD5Szt53kLNivBo6XAhqw9xKfMJUZwI00iCtrXknH',
-    link: '',       // ← テスト用の支払いリンク https://buy.stripe.com/test_xxxxx
+    link: 'https://buy.stripe.com/test_5kQdR10Vz2GEets57ggMw00',
   },
   live: {
     pk: '',         // ← 本番の公開可能キー pk_live_xxxxx
@@ -1693,7 +1693,7 @@ $('btn-pay').addEventListener('click', () => {
   if (paid || wasPaid() || !payLink()) { unlockPremium(); return; }
 
   saveForReturn();
-  location.href = payLink();       // Stripe の決済画面へ
+  location.assign(payLink());      // Stripe の決済画面へ
 });
 
 // --- 支払いから戻ってきたとき(?paid=1) ---
