@@ -37,8 +37,7 @@ const STRIPE = {
   // ここが空のあいだは確認のしようがないので、?paid=1 をそのまま信じてしまう。
   // URL に手で ?paid=1 と付けるだけで有料機能が開く状態になるため、
   // 実際に販売を始める前に必ず埋めること。
-  //   例: 'https://toshi-debut.netlify.app/.netlify/functions/verify'
-  verifyUrl: '',
+  verifyUrl: 'https://toshi-debut.netlify.app/.netlify/functions/verify',
 };
 
 const stripeConf = () => STRIPE[STRIPE.mode] || { pk: '', link: '' };

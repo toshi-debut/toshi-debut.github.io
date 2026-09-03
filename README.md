@@ -446,8 +446,8 @@ const STRIPE = {
 | `netlify-public/index.html` | Netlify 側を直接開いた人への案内ページ1枚 |
 
 **アプリ側の設定は `app.js` の `STRIPE.verifyUrl`。**
-ここが空のあいだは確認できないので、`?paid=1` をそのまま信じてしまう。
-**販売を始める前に必ず埋めること**（テストで空でないことは検査していないので注意）。
+現在は `https://toshi-debut.netlify.app/.netlify/functions/verify` を設定済み。
+ここが空だと `?paid=1` を無条件で信じてしまうので、**テストで空でないことを検査している。**
 
 #### シークレットキーの置き場所
 
