@@ -47,6 +47,23 @@ exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return reply(204, {});
   if (event.httpMethod !== 'GET') return reply(405, { paid: false, error: 'method' });
 
+  // ------------------------------------------------------------
+  // 設定の切り分け用  ?debug=1
+  //
+  // 環境変数が正しく届いているかを確認するためだけのもの。
+  // 【重要】キーの中身は絶対に返さない。返すのは「名前」と「あるかどうか」だけ。
+  // 設定が済んで動作が安定したら、このブロックごと削除してよい。
+  // ------------------------------------------------------------
+  if ((event.queryStringParameters || {}).debug === '1') {
+    const names = Object.keys(process.env).filter((k) => k.indexOf('STRIPE') !== -1);
+    return reply(200, {
+      hasTestKey: !!process.env.STRIPE_SECRET_KEY_TEST,
+      hasLiveKey: !!process.env.STRIPE_SECRET_KEY_LIVE,
+      stripeVarNames: names,                 // 名前だけ。中身は含まない
+      totalVarCount: Object.keys(process.env).length,
+    });
+  }
+
   const id = ((event.queryStringParameters || {}).session_id || '').trim();
 
   // Stripe の支払い番号の形になっていないものは、問い合わせる前に弾く
