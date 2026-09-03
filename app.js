@@ -30,6 +30,15 @@ const STRIPE = {
     pk: '',         // ← 本番の公開可能キー pk_live_xxxxx
     link: '',       // ← 本番の支払いリンク https://buy.stripe.com/xxxxx
   },
+
+  // 支払いが本物かを Stripe に確かめてくれるプログラムの場所(Netlify)。
+  // 中身は netlify/functions/verify.js。
+  //
+  // ここが空のあいだは確認のしようがないので、?paid=1 をそのまま信じてしまう。
+  // URL に手で ?paid=1 と付けるだけで有料機能が開く状態になるため、
+  // 実際に販売を始める前に必ず埋めること。
+  //   例: 'https://toshi-debut.netlify.app/.netlify/functions/verify'
+  verifyUrl: '',
 };
 
 const stripeConf = () => STRIPE[STRIPE.mode] || { pk: '', link: '' };
@@ -1696,8 +1705,43 @@ $('btn-pay').addEventListener('click', () => {
   location.assign(payLink());      // Stripe の決済画面へ
 });
 
-// --- 支払いから戻ってきたとき(?paid=1) ---
+// --- 支払いから戻ってきたとき(?paid=1&session_id=cs_xxx) ---
+//
+// Stripe から戻ってきただけでは「本当に払ったか」は分からない。
+// 支払い番号(session_id)を確認用プログラムに渡し、Stripe に問い合わせてもらう。
+// 送るのは支払い番号だけで、収入・支出・診断の回答は一切送らない。
+function verifyPayment(sessionId) {
+  if (!sessionId) return Promise.resolve({ ok: false, reason: 'no_session' });
+  const url = STRIPE.verifyUrl + '?session_id=' + encodeURIComponent(sessionId);
+  return fetch(url, { cache: 'no-store' })
+    .then((res) => res.json())
+    .then((data) => ({ ok: data && data.paid === true, reason: (data && data.error) || 'unpaid' }))
+    .catch(() => ({ ok: false, reason: 'network' }));
+}
+
 function resumeAfterPay() {
+  // 確認用プログラムが未設定のあいだは、確かめようがないのでそのまま通す
+  if (!STRIPE.verifyUrl) { finishPaidReturn(); return; }
+
+  verifyPayment(sessionParam()).then((v) => {
+    if (v.ok) finishPaidReturn();
+    else denyPaidReturn(v.reason);
+  });
+}
+
+// 確認が取れなかったとき。有料機能は開かない
+function denyPaidReturn(reason) {
+  const msg = reason === 'network'
+    ? 'お支払いの確認ができませんでした。<strong>通信が不安定な可能性があります。</strong>'
+      + '時間をおいて、もう一度お試しください。'
+    : 'お支払いを確認できませんでした。<strong>料金は請求されていません。</strong>'
+      + 'すでにお支払い済みの場合は、お手数ですが '
+      + '<strong>o.haru.no45.2006@gmail.com</strong> までご連絡ください。';
+  goScreen('screen-input', 1);
+  showFormAlert(msg);
+}
+
+function finishPaidReturn() {
   const s = loadReturn();
   markPaid(true);
 
@@ -2676,6 +2720,11 @@ function reviewParam() {
 
 function paidParam() {
   try { return new URLSearchParams(location.search).get('paid') === '1'; } catch (e) { return false; }
+}
+
+// Stripe が付けてくる支払い番号(cs_test_xxx / cs_live_xxx)
+function sessionParam() {
+  try { return new URLSearchParams(location.search).get('session_id') || ''; } catch (e) { return ''; }
 }
 
 // 支払い後の ?paid=1 を URL から消す。

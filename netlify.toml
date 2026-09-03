@@ -1,13 +1,14 @@
-# Netlify の公開設定
-# ビルドは不要で、リポジトリ直下のファイルをそのまま配信する
-
+# ============================================================
+# Netlify の設定
+#
+# このリポジトリは本体を GitHub Pages で公開しているので、
+# Netlify には「支払いの確認プログラム」だけを置く。
+#
+# publish に netlify-public を指定しているのは、
+# 診断アプリそのものが Netlify 側にも二重に公開されるのを防ぐため。
+# netlify-public の中には案内用のページを1枚だけ置いてある。
+# ============================================================
 [build]
-  publish = "."
-
-# 基本的なセキュリティヘッダ
-[[headers]]
-  for = "/*"
-  [headers.values]
-    X-Content-Type-Options = "nosniff"
-    X-Frame-Options = "SAMEORIGIN"
-    Referrer-Policy = "strict-origin-when-cross-origin"
+  publish = "netlify-public"
+  functions = "netlify/functions"
+  command = ""

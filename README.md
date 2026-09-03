@@ -426,11 +426,48 @@ const STRIPE = {
   → toshi-debut-paid を立てる / toshi-debut-return を消す / URLから ?paid=1 を消す
 ```
 
-### ⚠️ 未解決：支払い判定がブラウザ側にしかない
+### 支払いの確認（Netlify）
 
-`?paid=1` をブラウザで見ているだけなので、**URLに手で `?paid=1` を付ければ有料機能が開く。**
-本格的に販売するなら、**Netlify に移して Stripe に問い合わせる処理**を足すこと
-（無料枠で足りる。上の「公開URL」参照）。それまでは実質「善意まかせ」。
+**本体は GitHub Pages のまま。支払いを確認するプログラムだけを Netlify に置いている。**
+これで、URL に手で `?paid=1` と付けただけでは有料機能が開かなくなる。
+
+```
+支払い完了
+  → https://toshi-debut.github.io/?paid=1&session_id=cs_test_xxx に戻る
+  → session_id を Netlify の verify に渡す
+  → verify が Stripe に「この支払いは本物か」を問い合わせる
+  → paid: true が返ったときだけ有料画面を開く
+```
+
+| ファイル | 役割 |
+|---|---|
+| `netlify/functions/verify.js` | 支払いを Stripe に確認するプログラム |
+| `netlify.toml` | Netlify に「確認プログラムだけ置く」と伝える設定 |
+| `netlify-public/index.html` | Netlify 側を直接開いた人への案内ページ1枚 |
+
+**アプリ側の設定は `app.js` の `STRIPE.verifyUrl`。**
+ここが空のあいだは確認できないので、`?paid=1` をそのまま信じてしまう。
+**販売を始める前に必ず埋めること**（テストで空でないことは検査していないので注意）。
+
+#### シークレットキーの置き場所
+
+`sk_` で始まるキーは**コードに一切書かない。** Netlify の管理画面に登録する。
+
+```
+Netlify → Site configuration → Environment variables
+  STRIPE_SECRET_KEY_TEST = sk_test_xxxxx
+  STRIPE_SECRET_KEY_LIVE = sk_live_xxxxx
+```
+
+支払い番号が `cs_test_` で始まればテスト用、`cs_live_` なら本番用のキーを使い分ける。
+**両方登録しておけば、本番に切り替えるときに `verify.js` を直す必要はない。**
+
+#### 安全のために入れてあること
+
+- 呼び出せるのは `https://toshi-debut.github.io` からだけ（CORS）
+- 支払い番号の形をしていないものは、Stripe に問い合わせる前に弾く
+- 返すのは `{ paid: true / false }` **だけ**。購入者のメールアドレスなどは外に出さない
+- 確認できなかったときは有料画面を開かず、問い合わせ先を案内する
 
 ### 審査・動作確認用のURL
 
