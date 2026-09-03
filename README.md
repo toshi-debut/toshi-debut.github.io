@@ -462,6 +462,29 @@ Netlify → Site configuration → Environment variables
 支払い番号が `cs_test_` で始まればテスト用、`cs_live_` なら本番用のキーを使い分ける。
 **両方登録しておけば、本番に切り替えるときに `verify.js` を直す必要はない。**
 
+##### 🔒 やり残し：「Contains secret values」を ON に戻すこと
+
+Netlify には、環境変数を**機密扱い**にする設定（`Contains secret values`）がある。
+ONにすると、管理画面・API・ビルドログ・CLI のどこにも値が表示されなくなる。
+**Netlify 自身が「強くおすすめします」と表示する設定であり、本来はONにすべき。**
+
+**現在は OFF にしてある。** 理由は次の2つで、設定を切り分けるために一時的に外した。
+
+- ONにすると「すべてのデプロイコンテキストで同じ値」が選べなくなる
+- ONにすると Functions に値が届かない不具合が報告されている
+
+**動作が安定したら、必ずONに戻して試すこと。** 手順：
+
+1. Netlify → Environment variables → 変数を編集 → `Contains secret values` を ON
+2. デプロイコンテキストは **Production に値を入れる**（ONだと個別指定が必須になる）
+3. **Trigger deploy → デプロイプロジェクト**
+4. `https://toshi-debut.netlify.app/.netlify/functions/verify?debug=1` を開く
+   - `{"hasTestKey":true, ...}` のまま → **ONで運用できる。そのままにする**
+   - `false` に変わった → 例の不具合。**OFFに戻す**（安全性より動作を優先）
+
+**とくに本番キー（`sk_live_`）を登録するときは、必ずこれを試すこと。**
+本番キーは実際にお金を動かせるので、テストキーとは重みが違う。
+
 #### 安全のために入れてあること
 
 - 呼び出せるのは `https://toshi-debut.github.io` からだけ（CORS）
@@ -514,8 +537,11 @@ PayPay はデジタルコンテンツに対して高い料率を設定してい�
 
 ### 本番の決済を開始するときの手順
 
+0. **【最優先】Netlify の環境変数を「Contains secret values」ON にできないか試す**
+   （上の「シークレットキーの置き場所」参照。本番キーを扱う前に必ず）
 1. Stripe の審査完了を確認する
-2. **本番の**支払いリンクを作る（遷移先は `https://toshi-debut.github.io/?paid=1`）
+2. **本番の**支払いリンクを作る
+   （遷移先は `https://toshi-debut.github.io/?paid=1&session_id={CHECKOUT_SESSION_ID}`）
 3. `STRIPE.live.pk` と `STRIPE.live.link` を埋める
 4. `STRIPE.mode` を `'live'` に変える
 5. `tokushoho.html` 冒頭の「🛠️ 決済機能は準備中です」バナーを**削除**する
@@ -526,8 +552,7 @@ PayPay はデジタルコンテンツに対して高い料率を設定してい�
 
 ## 今後の拡張候補
 
-- **支払い判定のサーバー側検証**（Netlify へ移行）← 本番販売前に必須
-- 支払い済み判定のサーバー側検証
+- **Netlify の環境変数を機密扱い（Contains secret values）に戻す** ← 本番キーを入れる前に必須
 - 診断「結果」の保存(途中データは保存されるが、確定した結果は画像で残す形になっている)
 - 独自ドメインへの切り替え
 
