@@ -50,22 +50,18 @@ exports.handler = async (event) => {
   // ------------------------------------------------------------
   // 設定の切り分け用  ?debug=1
   //
-  // 環境変数が正しく届いているかを確認するためだけのもの。
-  // 【重要】キーの中身は絶対に返さない。返すのは「名前」と「あるかどうか」だけ。
-  // 設定が済んで動作が安定したら、このブロックごと削除してよい。
+  // 環境変数が届いているかどうかだけを返す。
+  //
+  // 【絶対にやってはいけないこと】
+  //   環境変数の「名前の一覧」を返さないこと。
+  //   キーを名前の欄に貼ってしまう設定ミスがあると、名前の一覧に
+  //   キーそのものが載り、この応答から誰でも読めてしまう。
+  //   実際に一度それが起きたので、名前は返さない作りに直した。
   // ------------------------------------------------------------
   if ((event.queryStringParameters || {}).debug === '1') {
-    const all = Object.keys(process.env).sort();
-    // Netlify や Lambda がもともと入れている変数を除くと、自分で足したものが残る
-    const builtin = /^(AWS|LAMBDA|NETLIFY|_HANDLER|TZ|PATH|LANG|NODE|npm_|URL$|DEPLOY|CONTEXT|BRANCH|COMMIT_REF|CACHED_COMMIT_REF|HEAD|REPOSITORY_URL|SITE_|BUILD_ID|PULL_REQUEST|INCOMING_HOOK|LD_LIBRARY_PATH|LC_|SHLVL|PWD|HOME|_$)/;
     return reply(200, {
       hasTestKey: !!process.env.STRIPE_SECRET_KEY_TEST,
       hasLiveKey: !!process.env.STRIPE_SECRET_KEY_LIVE,
-      // 大文字小文字を問わず stripe を含む名前(小文字で登録した場合を拾うため)
-      stripeVarNames: all.filter((k) => /stripe/i.test(k)),
-      // 自分で追加したとみられる変数の名前(中身は含まない)
-      customVarNames: all.filter((k) => !builtin.test(k)),
-      totalVarCount: all.length,
     });
   }
 
