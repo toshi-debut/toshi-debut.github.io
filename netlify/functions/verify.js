@@ -55,12 +55,17 @@ exports.handler = async (event) => {
   // 設定が済んで動作が安定したら、このブロックごと削除してよい。
   // ------------------------------------------------------------
   if ((event.queryStringParameters || {}).debug === '1') {
-    const names = Object.keys(process.env).filter((k) => k.indexOf('STRIPE') !== -1);
+    const all = Object.keys(process.env).sort();
+    // Netlify や Lambda がもともと入れている変数を除くと、自分で足したものが残る
+    const builtin = /^(AWS|LAMBDA|NETLIFY|_HANDLER|TZ|PATH|LANG|NODE|npm_|URL$|DEPLOY|CONTEXT|BRANCH|COMMIT_REF|CACHED_COMMIT_REF|HEAD|REPOSITORY_URL|SITE_|BUILD_ID|PULL_REQUEST|INCOMING_HOOK|LD_LIBRARY_PATH|LC_|SHLVL|PWD|HOME|_$)/;
     return reply(200, {
       hasTestKey: !!process.env.STRIPE_SECRET_KEY_TEST,
       hasLiveKey: !!process.env.STRIPE_SECRET_KEY_LIVE,
-      stripeVarNames: names,                 // 名前だけ。中身は含まない
-      totalVarCount: Object.keys(process.env).length,
+      // 大文字小文字を問わず stripe を含む名前(小文字で登録した場合を拾うため)
+      stripeVarNames: all.filter((k) => /stripe/i.test(k)),
+      // 自分で追加したとみられる変数の名前(中身は含まない)
+      customVarNames: all.filter((k) => !builtin.test(k)),
+      totalVarCount: all.length,
     });
   }
 
